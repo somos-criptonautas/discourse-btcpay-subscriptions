@@ -1,0 +1,35 @@
+plugins:
+  btcpay_enabled:
+    default: false
+    client: true
+  btcpay_server_url:
+    default: ""
+    description: "BTCPay Server URL (e.g. https://btcpay.yourdomain.com)"
+  btcpay_api_key:
+    default: ""
+    secret: true
+    description: "Greenfield API key with invoice + subscription permissions"
+  btcpay_store_id:
+    default: ""
+    description: "BTCPay Store ID"
+  btcpay_webhook_secret:
+    default: ""
+    secret: true
+    description: "Webhook secret for HMAC signature validation"
+  btcpay_plan_mappings:
+    default: "[]"
+    textarea: true
+    description: 'One JSON array, e.g. [{"plan_id":"xxx","group_name":"premium","label":"Premium Monthly"}]'
+  btcpay_button_label:
+    default: "Pay with Bitcoin"
+    client: true
+    description: "Label for the BTCPay payment button"
+  btcpay_reconcile_interval_hours:
+    default: 4
+    min: 1
+    max: 168
+    description: "How often the reconciliation job runs (in hours)"
+  btcpay_redirect_after_checkout:
+    default: "/my/billing"
+    client: true
+    description: "Discourse path to redirect to after BTCPay checkout"

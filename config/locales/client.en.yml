@@ -1,0 +1,48 @@
+en:
+  js:
+    btcpay:
+      loading: "Loading…"
+
+      status:
+        all: "Total"
+        active: "Active"
+        pending: "Pending"
+        expired: "Expired"
+        cancelled: "Cancelled"
+        disputed: "Disputed"
+
+      checkout:
+        default_label: "Pay with Bitcoin"
+        processing: "Processing…"
+        no_plans: "No Bitcoin payment plans available."
+        failed: "Failed to create checkout. Please try again."
+
+      billing:
+        nav_label: "Billing"
+        title: "Bitcoin Subscription"
+        plan: "Plan"
+        status: "Status"
+        period_end: "Current period ends"
+        manage: "Manage on BTCPay"
+        history: "Payment History"
+        none: "No active Bitcoin subscription."
+        col_date: "Date"
+        col_amount: "Amount"
+        col_method: "Method"
+        col_status: "Status"
+
+      admin:
+        title: "BTCPay Subscriptions"
+        sync: "Sync with BTCPay"
+        syncing: "Syncing…"
+        empty: "No subscriptions found."
+        not_configured: "BTCPay is not fully configured."
+        not_synced: "Node not fully synced"
+        network_unknown: "network unknown"
+        chain_height: "block %{height}"
+        col_user: "User"
+        col_plan: "Plan"
+        col_status: "Status"
+        col_group: "Group"
+        col_period_end: "Period End"
+        col_payments: "Payments"

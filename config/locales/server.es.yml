@@ -1,0 +1,33 @@
+es:
+  site_settings:
+    btcpay_enabled: "Activar la integración de suscripciones con BTCPay Server"
+    btcpay_server_url: "URL de BTCPay Server"
+    btcpay_api_key: "Clave de API Greenfield de BTCPay"
+    btcpay_store_id: "ID de la tienda de BTCPay"
+    btcpay_webhook_secret: "Secreto HMAC del webhook de BTCPay"
+    btcpay_plan_mappings: "Correspondencia plan → grupo (array JSON)"
+    btcpay_button_label: "Texto del botón de pago de BTCPay"
+    btcpay_reconcile_interval_hours: "Intervalo de la tarea de reconciliación (horas)"
+    btcpay_redirect_after_checkout: "Ruta de redirección tras el pago en BTCPay"
+
+  system_messages:
+    btcpay_admin_notification:
+      title: "Aviso de BTCPay: %{subject}"
+      subject_template: "Aviso de BTCPay: %{subject}"
+      text_body_template: |
+        %{body}
+
+        ---
+        Este es un mensaje automático del plugin de suscripciones BTCPay.
+
+  discourse_btcpay:
+    errors:
+      not_enabled: "La integración con BTCPay no está activada."
+      missing_config: "BTCPay Server no está configurado por completo."
+      plan_not_found: "No se encontró el plan solicitado."
+      rate_limited: "Demasiados intentos de pago. Espera un momento e inténtalo de nuevo."
+      checkout_failed: "No se pudo crear el pago en BTCPay. Inténtalo de nuevo."
+      webhook_invalid_signature: "Firma del webhook inválida."
+      webhook_duplicate: "La factura ya fue procesada."
+      user_not_found: "No se encontró el usuario de Discourse para esta suscripción."
+      group_not_found: "El grupo de destino no existe."

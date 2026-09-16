@@ -1,0 +1,48 @@
+es:
+  js:
+    btcpay:
+      loading: "Cargando…"
+
+      status:
+        all: "Total"
+        active: "Activa"
+        pending: "Pendiente"
+        expired: "Vencida"
+        cancelled: "Cancelada"
+        disputed: "En disputa"
+
+      checkout:
+        default_label: "Pagar con Bitcoin"
+        processing: "Procesando…"
+        no_plans: "No hay planes de pago con Bitcoin disponibles."
+        failed: "No se pudo crear el pago. Inténtalo de nuevo."
+
+      billing:
+        nav_label: "Facturación"
+        title: "Suscripción en Bitcoin"
+        plan: "Plan"
+        status: "Estado"
+        period_end: "El periodo actual termina"
+        manage: "Gestionar en BTCPay"
+        history: "Historial de pagos"
+        none: "No tienes ninguna suscripción activa en Bitcoin."
+        col_date: "Fecha"
+        col_amount: "Importe"
+        col_method: "Método"
+        col_status: "Estado"
+
+      admin:
+        title: "Suscripciones BTCPay"
+        sync: "Sincronizar con BTCPay"
+        syncing: "Sincronizando…"
+        empty: "No se encontraron suscripciones."
+        not_configured: "BTCPay no está configurado por completo."
+        not_synced: "El nodo no está sincronizado del todo"
+        network_unknown: "red desconocida"
+        chain_height: "bloque %{height}"
+        col_user: "Usuario"
+        col_plan: "Plan"
+        col_status: "Estado"
+        col_group: "Grupo"
+        col_period_end: "Fin del periodo"
+        col_payments: "Pagos"
