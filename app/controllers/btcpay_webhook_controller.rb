@@ -10,7 +10,7 @@ module DiscourseBtcpay
 
     def handle
       unless SiteSetting.btcpay_enabled
-        return render json: { error: "disabled" }, status: 503
+        return render json: { error: "disabled" }, status: :service_unavailable
       end
 
       # BTCPay retries failed deliveries; this only stops floods from an
@@ -19,7 +19,7 @@ module DiscourseBtcpay
 
       unless request.media_type == "application/json"
         Rails.logger.warn("DiscourseBtcpay: Rejected webhook with content-type #{request.media_type.inspect}")
-        return render json: { error: "expected application/json" }, status: 415
+        return render json: { error: "expected application/json" }, status: :unsupported_media_type
       end
 
       payload = request.body.read
@@ -28,7 +28,7 @@ module DiscourseBtcpay
       unless valid_signature?(payload, signature)
         DiscourseBtcpay.log_hmac_failure
         Rails.logger.warn("DiscourseBtcpay: Invalid webhook signature")
-        return render json: { error: "invalid signature" }, status: 401
+        return render json: { error: "invalid signature" }, status: :unauthorized
       end
 
       DiscourseBtcpay.reset_hmac_failures
@@ -50,15 +50,15 @@ module DiscourseBtcpay
         Rails.logger.info("DiscourseBtcpay: Ignoring unhandled event type: #{event_type}")
       end
 
-      render json: { status: "ok" }, status: 200
+      render json: { status: "ok" }, status: :ok
     rescue RateLimiter::LimitExceeded
-      render json: { error: "rate limited" }, status: 429
+      render json: { error: "rate limited" }, status: :too_many_requests
     rescue JSON::ParserError => e
       Rails.logger.error("DiscourseBtcpay: Invalid webhook JSON: #{e.message}")
-      render json: { error: "invalid json" }, status: 400
+      render json: { error: "invalid json" }, status: :bad_request
     rescue => e
       Rails.logger.error("DiscourseBtcpay: Webhook error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
-      render json: { error: "internal error" }, status: 500
+      render json: { error: "internal error" }, status: :internal_server_error
     end
 
     private

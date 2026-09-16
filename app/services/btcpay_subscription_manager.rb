@@ -79,7 +79,7 @@ module DiscourseBtcpay
       end
 
       # Add to group (idempotent)
-      group.add(user) unless group.users.include?(user)
+      group.add(user) if group.users.exclude?(user)
 
       Rails.logger.info("DiscourseBtcpay: Activated subscription for user #{user.username} → group #{group_name}")
       { success: true }

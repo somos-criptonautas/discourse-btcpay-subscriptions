@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-describe "DiscourseBtcpay.plan_mappings" do
+describe DiscourseBtcpay::BtcpaySubscriptionManager do
   it "returns [] for blank or malformed settings" do
     SiteSetting.btcpay_plan_mappings = ""
     expect(DiscourseBtcpay.plan_mappings).to eq([])

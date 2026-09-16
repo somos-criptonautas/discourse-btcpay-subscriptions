@@ -19,7 +19,7 @@ module DiscourseBtcpay
       group_name = manager.group_for_plan(plan_id)
 
       unless group_name
-        return render json: { error: I18n.t("discourse_btcpay.errors.plan_not_found") }, status: 404
+        return render json: { error: I18n.t("discourse_btcpay.errors.plan_not_found") }, status: :not_found
       end
 
       redirect_url = "#{Discourse.base_url}#{SiteSetting.btcpay_redirect_after_checkout}"
@@ -39,15 +39,15 @@ module DiscourseBtcpay
 
       unless checkout_url
         Rails.logger.error("DiscourseBtcpay: No checkout URL returned: #{result.inspect}")
-        return render json: { error: I18n.t("discourse_btcpay.errors.checkout_failed") }, status: 502
+        return render json: { error: I18n.t("discourse_btcpay.errors.checkout_failed") }, status: :bad_gateway
       end
 
       render json: { checkout_url: checkout_url }
     rescue RateLimiter::LimitExceeded
-      render json: { error: I18n.t("discourse_btcpay.errors.rate_limited") }, status: 429
+      render json: { error: I18n.t("discourse_btcpay.errors.rate_limited") }, status: :too_many_requests
     rescue BtcpayApi::ApiError => e
       Rails.logger.error("DiscourseBtcpay: Checkout creation failed: #{e.message}")
-      render json: { error: I18n.t("discourse_btcpay.errors.checkout_failed") }, status: 502
+      render json: { error: I18n.t("discourse_btcpay.errors.checkout_failed") }, status: :bad_gateway
     end
 
     # GET /btcpay/subscription
@@ -95,12 +95,13 @@ module DiscourseBtcpay
 
     def ensure_btcpay_configured
       unless SiteSetting.btcpay_enabled
-        return render json: { error: I18n.t("discourse_btcpay.errors.not_enabled") }, status: 503
+        return render json: { error: I18n.t("discourse_btcpay.errors.not_enabled") }, status: :service_unavailable
       end
 
       api = BtcpayApi.new
       unless api.configured?
-        return render json: { error: I18n.t("discourse_btcpay.errors.missing_config") }, status: 503
+        render json: { error: I18n.t("discourse_btcpay.errors.missing_config") },
+               status: :service_unavailable
       end
     end
 

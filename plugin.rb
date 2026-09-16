@@ -107,17 +107,12 @@ after_initialize do
     end
   end
 
-  # Load dependencies
-  %w[
-    ../app/services/btcpay_api
-    ../app/services/btcpay_subscription_manager
-    ../app/controllers/btcpay_webhook_controller
-    ../app/controllers/btcpay_checkout_controller
-    ../app/controllers/admin/btcpay_admin_controller
-    ../app/jobs/scheduled/btcpay_reconcile
-  ].each do |path|
-    load File.expand_path(path, __FILE__)
-  end
+  require_relative "app/services/btcpay_api"
+  require_relative "app/services/btcpay_subscription_manager"
+  require_relative "app/controllers/btcpay_webhook_controller"
+  require_relative "app/controllers/btcpay_checkout_controller"
+  require_relative "app/controllers/admin/btcpay_admin_controller"
+  require_relative "app/jobs/scheduled/btcpay_reconcile"
 
   # Routes
   DiscourseBtcpay::Engine.routes.draw do
@@ -146,15 +141,5 @@ after_initialize do
       plan_name: sub["plan_name"],
       period_end: sub["period_end"]
     }
-  end
-
-  # Handle username changes — update BTCPay metadata if possible
-  DiscourseEvent.on(:user_updated) do |user|
-    # We use user_id in metadata, so username changes don't break anything.
-    # This hook is here as a safety net for logging.
-    sub = DiscourseBtcpay.get_subscription(user.id)
-    if sub
-      Rails.logger.info("DiscourseBtcpay: User #{user.id} updated, subscription intact (user_id based)")
-    end
   end
 end
