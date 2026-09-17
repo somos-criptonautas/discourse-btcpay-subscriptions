@@ -7,6 +7,9 @@ module DiscourseBtcpay
     before_action :ensure_logged_in, except: []
     before_action :ensure_btcpay_configured
 
+    PLANS_CACHE_KEY = "btcpay_remote_plans"
+    PLANS_CACHE_TTL = 10.minutes
+
     # POST /btcpay/checkout
     # Body: { plan_id: "xxx" }
     def create
@@ -42,7 +45,13 @@ module DiscourseBtcpay
         return render json: { error: I18n.t("discourse_btcpay.errors.checkout_failed") }, status: :bad_gateway
       end
 
-      render json: { checkout_url: checkout_url }
+      # invoice_id + modal_url let the client open BTCPay's overlay; the
+      # checkout_url is the fallback when the modal script can't load.
+      render json: {
+        checkout_url: checkout_url,
+        invoice_id: invoice_id_from(result, checkout_url),
+        modal_url: "#{SiteSetting.btcpay_server_url.chomp("/")}/modal/btcpay.js"
+      }
     rescue RateLimiter::LimitExceeded
       render json: { error: I18n.t("discourse_btcpay.errors.rate_limited") }, status: :too_many_requests
     rescue BtcpayApi::ApiError => e
@@ -69,29 +78,46 @@ module DiscourseBtcpay
     # GET /btcpay/plans
     def plans
       parsed_plans = DiscourseBtcpay.plan_mappings.map(&:dup)
+      btcpay_plans = remote_plans
 
-      # Enrich with BTCPay plan details if available
-      begin
-        api = BtcpayApi.new
-        btcpay_plans = api.list_plans
-        if btcpay_plans.is_a?(Array)
-          parsed_plans.each do |plan|
-            remote = btcpay_plans.find { |p| p["id"] == plan["plan_id"] }
-            if remote
-              plan["price"] = remote["amount"]
-              plan["currency"] = remote["currency"]
-              plan["interval"] = remote["period"]
-            end
-          end
-        end
-      rescue BtcpayApi::ApiError => e
-        Rails.logger.warn("DiscourseBtcpay: Could not fetch plans from BTCPay: #{e.message}")
+      parsed_plans.each do |plan|
+        remote = btcpay_plans.find { |p| p["id"] == plan["plan_id"] }
+        next unless remote
+
+        # BTCPay is the source of truth for price; the mapping only names it.
+        plan["price"] = remote["amount"]
+        plan["currency"] = remote["currency"]
+        plan["interval"] = remote["period"]
       end
 
       render json: { plans: parsed_plans }
     end
 
     private
+
+    # Prices come from BTCPay, cached so a popular page does not hammer it.
+    def remote_plans
+      cached =
+        Discourse
+          .cache
+          .fetch(PLANS_CACHE_KEY, expires_in: PLANS_CACHE_TTL) do
+            BtcpayApi.new.list_plans
+          rescue BtcpayApi::ApiError => e
+            Rails.logger.warn("DiscourseBtcpay: Could not fetch plans from BTCPay: #{e.message}")
+            nil
+          end
+
+      cached.is_a?(Array) ? cached : []
+    end
+
+    def invoice_id_from(result, checkout_url)
+      id = result["invoiceId"] || result["id"]
+      return id if id.present?
+
+      URI.parse(checkout_url).path.split("/").last
+    rescue URI::InvalidURIError
+      nil
+    end
 
     def ensure_btcpay_configured
       unless SiteSetting.btcpay_enabled

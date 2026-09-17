@@ -11,9 +11,15 @@ en:
         cancelled: "Cancelled"
         disputed: "Disputed"
 
+      subscribe:
+        title: "Subscriptions"
+        nav_label: "Subscribe"
+        intro: "Pay with crypto through BTCPay Server. Access is granted as soon as the payment settles."
+
       checkout:
         default_label: "Pay with crypto"
         processing: "Processing…"
+        settled: "Payment received — your subscription is active."
         no_plans: "No crypto payment plans available."
         failed: "Failed to create checkout. Please try again."
 

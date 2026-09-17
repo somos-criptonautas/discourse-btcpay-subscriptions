@@ -4,7 +4,7 @@
 
 [ENGLISH](README.md) | **ESPAÑOL**
 
-Integración de suscripciones de BTCPay Server para Discourse. Añade el pago con Bitcoin/Monero junto a Stripe en la página de suscripciones de tu foro.
+Integración de suscripciones de BTCPay Server para Discourse. Vende acceso a grupos con cualquier cripto que soporte BTCPay — BTC, XMR, LTC, Lightning — con precios fijados en moneda fiat. Autónomo: no necesita Stripe ni `discourse-subscriptions`.
 
 ## Arquitectura
 
@@ -63,7 +63,7 @@ cd /var/discourse
 6. Ve a **Store Settings → Webhooks**
 7. Crea un webhook:
    - **URL:** `https://tudiscourse.com/btcpay/webhook`
-   - **Eventos:** `InvoiceSettled`, `InvoiceProcessing`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`
+   - **Eventos:** `InvoiceSettled`, `InvoiceProcessing`, `InvoiceExpired`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`
    - **Secreto:** genéralo y guárdalo — lo necesitas en los ajustes de Discourse
 8. En **Checkout Appearance**, asegúrate de permitir las URLs de redirección
 
@@ -109,6 +109,7 @@ Usa siempre la URL pública (`https://tudiscourse.com/btcpay/webhook`) como dest
 |---|---|
 | `InvoiceProcessing` | Marca la suscripción como "pendiente" |
 | `InvoiceSettled` | Activa la suscripción, añade al grupo y registra el pago |
+| `InvoiceExpired` | Limpia un registro `pending` — una factura impagada nunca da acceso |
 | `InvoiceInvalid` | Marca "en disputa", mantiene el acceso y avisa al admin |
 | `SubscriptionExpired` | Saca al usuario del grupo, marca "vencida" |
 | `SubscriptionCancelled` | Saca al usuario del grupo, marca "cancelada" |
@@ -125,13 +126,15 @@ Usa siempre la URL pública (`https://tudiscourse.com/btcpay/webhook`) como dest
 
 ### Flujo del usuario
 
-1. Entra en la página de suscripciones de Discourse
-2. Ve las opciones de Stripe (existentes) + la sección "Pagar en cripto"
-3. Elige un plan y pulsa el botón
-4. Va a BTCPay → paga con BTC/XMR/Lightning
-5. Vuelve a Discourse → ve su suscripción activa en `/my/billing` (también enlazada desde su perfil)
-6. Renovación: BTCPay envía el aviso → paga → mantiene el acceso
-7. Impago: llega el webhook → sale del grupo
+1. El usuario abre `/subscribe` (enlazado desde la barra lateral)
+2. Elige un plan — el precio mostrado es el que cobra BTCPay, consultado en vivo y cacheado 10 minutos
+3. Pulsa **Pagar en cripto** → el checkout de BTCPay se abre en un modal sobre la página; no sale de Discourse
+4. Paga con cualquier método que acepte la tienda (BTC, XMR, LTC, Lightning…)
+5. `InvoiceProcessing` marca la suscripción como pendiente; la página consulta el estado y muestra "Pago recibido" cuando `InvoiceSettled` concede el grupo
+6. El estado y el historial de pagos están en `/my/billing`, también enlazado desde el perfil
+7. Renovación: BTCPay envía el aviso → paga → mantiene el acceso. Impago: llega el webhook → sale del grupo
+
+Si el script del modal no puede cargarse (CSP, host de BTCPay caído), el botón recurre a la redirección completa a BTCPay y de vuelta a `btcpay_redirect_after_checkout`.
 
 ## Esquema del PluginStore
 
@@ -160,6 +163,88 @@ reconcile_last_run_at      → marca de tiempo ISO8601 de la última reconciliac
 **Sincronización manual:** Admin → Plugins → BTCPay → botón "Sincronizar con BTCPay" (ignora el intervalo).
 
 **Red equivocada:** la página de admin muestra la red que reporta BTCPay (mainnet / testnet) junto a la URL del servidor y la altura de la cadena. Se deduce de la punta de la cadena; "red desconocida" significa que BTCPay no devolvió estado de sincronización.
+
+## Pruebas en testnet
+
+Nada del plugin es específico de BTC: registra el método de pago que BTCPay indique como pagado, así que XMR, LTC, DOGE y Lightning funcionan igual. Testnet es simplemente un BTCPay corriendo sobre una cadena de prueba.
+
+### 1. Consigue un BTCPay de testnet
+
+Usa la demo pública (lo más rápido, sin instalación, se borra cada cierto tiempo):
+
+- https://testnet.demo.btcpayserver.org — regístrate, crea una tienda y listo.
+
+O levanta el tuyo en testnet/regtest:
+
+```bash
+git clone https://github.com/btcpayserver/btcpayserver-docker
+cd btcpayserver-docker
+export BTCPAY_HOST="btcpay.test.tudominio.com"
+export NBITCOIN_NETWORK="testnet"          # o "regtest" para bloques instantáneos
+export BTCPAYGEN_CRYPTO1="btc"
+export BTCPAYGEN_CRYPTO2="xmr"             # añade más para probar multi-cripto
+export BTCPAYGEN_ADDITIONAL_FRAGMENTS="opt-save-storage-s"
+. ./btcpay-setup.sh -i
+```
+
+Sincronizar testnet tarda unas horas; regtest es instantáneo pero minas tú los bloques.
+
+### 2. Configura la tienda
+
+1. Tienda → Carteras → BTC → conecta una cartera con **tpub** (xpub de testnet) o deja que BTCPay genere una. Guarda la semilla.
+2. Tienda → Suscripciones → crea una Oferta y un Plan con precio en **USD** (por ejemplo 10 USD/mes). BTCPay convierte de USD a cripto en el checkout con su proveedor de tasas — Discourse solo muestra la cifra en USD.
+3. Cuenta → Claves API → crea una clave con `canviewinvoices`, `cancreateinvoice`, `canviewsubscriptions`, `cancreatesubscriptioncheckout` y `canviewstoresettings` (necesaria para el panel de red/servidor).
+
+### 3. Apunta Discourse al servidor
+
+Configura `btcpay_server_url` con el host de testnet, más la clave API, el store ID y las asignaciones de planes. **Admin → Plugins → BTCPay** muestra la etiqueta `TESTNET`, la versión de BTCPay, la altura de la cadena y los códigos de cripto que reporta el servidor — comprueba que diga testnet antes de seguir.
+
+### 4. Haz alcanzables los webhooks
+
+BTCPay tiene que llegar a tu Discourse por HTTPS. Para un Discourse local, haz un túnel:
+
+```bash
+cloudflared tunnel --url http://localhost:3000
+# o: ngrok http 3000
+```
+
+Luego configura el host del túnel en Discourse y apunta el webhook de BTCPay a `https://<host-del-túnel>/btcpay/webhook` con los eventos `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`.
+
+### 5. Haz un pago
+
+1. Abre `/subscribe` en Discourse con un usuario normal (no admin).
+2. Elige un plan → **Pagar en cripto** → se abre el modal de BTCPay sobre la página.
+3. Paga desde una cartera de testnet. Monedas gratis:
+   - BTC testnet3: https://coinfaucet.eu/en/btc-testnet/ o https://bitcoinfaucet.uo1.net
+   - BTC signet: https://signetfaucet.com
+   - LTC testnet: https://testnet-faucet.com/ltc-testnet
+   - Monero stagenet: https://community.rino.io/faucet/stagenet/
+   - regtest: `bitcoin-cli -regtest generatetoaddress 101 <dirección>` — sin faucet
+4. Observa los estados: en cuanto la transacción entra en la mempool BTCPay dispara `InvoiceProcessing` → el plugin marca la suscripción como **pendiente** (aún sin grupo). Tras las confirmaciones dispara `InvoiceSettled` → se añade al usuario al grupo y la página muestra "Pago recibido".
+
+### 6. Verifica
+
+```bash
+# dentro del contenedor de Discourse
+./launcher enter app
+rails c
+> DiscourseBtcpay.get_subscription(User.find_by(username: "tester").id)
+> DiscourseBtcpay.get_payments(User.find_by(username: "tester").id)
+```
+
+El `payment_method` del pago es el que realmente lo liquidó (`BTC`, `XMR`, `BTC-LightningNetwork`…), no un BTC fijo.
+
+Revisa también **BTCPay → Tienda → Webhooks → Entregas** buscando respuestas 200. Un 401 significa que el secreto no coincide; un 415, que se envió algo que no era `application/json`.
+
+### 7. Prueba los caminos de fallo
+
+| Escenario | Cómo provocarlo | Resultado esperado |
+|---|---|---|
+| Webhook perdido | Desactiva el webhook en BTCPay, paga y vuelve a activarlo | Admin → BTCPay → **Sincronizar con BTCPay** concede el grupo |
+| Factura abandonada | Inicia un checkout y no pagues | Queda `pending` y pasa a `expired` con `InvoiceExpired` (o en 24 h por la reconciliación) |
+| BTCPay caído | Detén el contenedor y pulsa Pagar | Mensaje de error en la página, sin escribir estado; la reconciliación reintenta la hora siguiente |
+| Secreto incorrecto | Cambia `btcpay_webhook_secret` | 401 en el registro de entregas; tras 3 fallos, MP al admin |
+| Reembolso | Marca una factura como inválida en BTCPay | Estado `disputed`, se mantiene el acceso, MP al admin |
 
 ## Desarrollo
 

@@ -27,12 +27,14 @@ discourse-btcpay-subscriptions/
 │       ├── initializers/btcpay-subscriptions.js
 │       ├── components/
 │       │   ├── btcpay-admin-dashboard.gjs
+│       │   ├── btcpay-checkout.gjs             # Plan picker + BTCPay modal
 │       │   └── btcpay-subscription-status.gjs
+│       ├── btcpay-route-map.js                 # btcpaySubscribe → /subscribe
 │       ├── connectors/
-│       │   ├── discourse-subscriptions-below-stripe/btcpay-button.gjs
 │       │   └── user-main-nav/btcpay-billing-link.gjs
 │       └── templates/
 │           ├── admin-plugins-btcpay.gjs
+│           ├── btcpay-subscribe.gjs
 │           └── user/billing.gjs
 │
 ├── spec/
@@ -58,10 +60,11 @@ btcpay_plans                → JSON [ { btcpay_plan_id, name, group_name, price
 ## Request Flow
 
 ```
-User clicks "Pay with crypto"
-    → POST /btcpay/checkout (sends discourse_username in metadata)
+User clicks "Pay with crypto" on /subscribe
+    → POST /btcpay/checkout (sends discourse_user_id in metadata)
     → Plugin calls BTCPay Greenfield API → creates plan checkout
-    → Returns checkout URL → user redirected to BTCPay
+    → Returns invoice id + modal url → BTCPay modal opens in place
+      (falls back to redirecting to the checkout URL)
 
 BTCPay payment settles
     → POST /btcpay/webhook (signed with HMAC)

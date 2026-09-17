@@ -4,7 +4,7 @@
 
 **ENGLISH** | [ESPAÑOL](README.es.md)
 
-BTCPay Server subscription integration for Discourse. Adds Bitcoin/Monero payment option alongside Stripe on your Discourse subscriptions page.
+BTCPay Server subscription integration for Discourse. Sells group access for any crypto BTCPay supports — BTC, XMR, LTC, Lightning — with prices set in fiat. Self-contained: no Stripe and no `discourse-subscriptions` needed.
 
 ## Architecture
 
@@ -63,7 +63,7 @@ cd /var/discourse
 6. Go to **Store Settings → Webhooks**
 7. Create a webhook:
    - **URL:** `https://yourdiscourse.com/btcpay/webhook`
-   - **Events:** `InvoiceSettled`, `InvoiceProcessing`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`
+   - **Events:** `InvoiceSettled`, `InvoiceProcessing`, `InvoiceExpired`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`
    - **Secret:** Generate and save this — you'll need it for Discourse settings
 8. Under **Checkout Appearance**, ensure redirect URLs are allowed
 
@@ -127,6 +127,7 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 |---|---|
 | `InvoiceProcessing` | Marks subscription as "pending" in PluginStore |
 | `InvoiceSettled` | Activates subscription, adds user to group, records payment |
+| `InvoiceExpired` | Clears a `pending` record — an unpaid invoice never grants access |
 | `InvoiceInvalid` | Marks as "disputed", keeps group access, notifies admin |
 | `SubscriptionExpired` | Removes user from group, marks expired |
 | `SubscriptionCancelled` | Removes user from group, marks cancelled |
@@ -142,13 +143,15 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 
 ### User Flow
 
-1. User visits Discourse subscriptions page
-2. Sees Stripe options (existing) + "Pay with crypto" section (this plugin)
-3. Selects a plan, clicks the button
-4. Redirected to BTCPay checkout → pays with BTC/XMR/Lightning
-5. Redirected back to Discourse → sees subscription active at `/my/billing` (also linked from the user profile nav)
-6. On renewal: BTCPay sends reminder email → user pays → group access continues
-7. On lapse: webhook fires → user removed from group
+1. User opens `/subscribe` (linked from the sidebar)
+2. Picks a plan — the price shown is the fiat price BTCPay charges, fetched live and cached for 10 minutes
+3. Clicks **Pay with crypto** → BTCPay's checkout opens in a modal over the page; the user never leaves Discourse
+4. Pays with any method the store accepts (BTC, XMR, LTC, Lightning, …)
+5. `InvoiceProcessing` marks the subscription pending; the page polls and flips to "Payment received" once `InvoiceSettled` grants the group
+6. Status and payment history live at `/my/billing`, also linked from the user profile nav
+7. On renewal: BTCPay sends the reminder → user pays → access continues. On lapse: webhook fires → user removed from group
+
+If the modal script cannot load (CSP, offline BTCPay asset host), the button falls back to a full redirect to BTCPay and back to `btcpay_redirect_after_checkout`.
 
 ## PluginStore Schema
 
@@ -178,6 +181,88 @@ hmac_failures               → { count, last_at }
 **Manual sync:** Admin → Plugins → BTCPay → "Sync with BTCPay" button (bypasses the interval).
 
 **Wrong network:** the admin page shows the network BTCPay reports (mainnet / testnet) next to the server URL and chain height. It is derived from the chain tip; "unknown" means BTCPay returned no sync status.
+
+## Testing on testnet
+
+Nothing in the plugin is BTC-specific: it reads whatever payment method BTCPay reports as paid, so XMR, LTC, DOGE and Lightning all work the same. Testnet is just a BTCPay server running on a test chain.
+
+### 1. Get a testnet BTCPay
+
+Either use the public demo (fastest, no setup, wiped periodically):
+
+- https://testnet.demo.btcpayserver.org — register, create a store, done.
+
+Or run your own on testnet/regtest:
+
+```bash
+git clone https://github.com/btcpayserver/btcpayserver-docker
+cd btcpayserver-docker
+export BTCPAY_HOST="btcpay.test.yourdomain.com"
+export NBITCOIN_NETWORK="testnet"          # or "regtest" for instant blocks
+export BTCPAYGEN_CRYPTO1="btc"
+export BTCPAYGEN_CRYPTO2="xmr"             # add more to test multi-crypto
+export BTCPAYGEN_ADDITIONAL_FRAGMENTS="opt-save-storage-s"
+. ./btcpay-setup.sh -i
+```
+
+Testnet sync takes a few hours; regtest is instant but you mine your own blocks.
+
+### 2. Set up the store
+
+1. Store → Wallets → BTC → connect an existing wallet with a **tpub** (testnet xpub) or let BTCPay generate one. Save the seed.
+2. Store → Subscriptions → create an Offering and a Plan priced in **USD** (e.g. 10 USD / month). BTCPay converts USD to crypto at checkout using its rate provider — Discourse only ever shows the USD figure.
+3. Account → API Keys → create a key with `canviewinvoices`, `cancreateinvoice`, `canviewsubscriptions`, `cancreatesubscriptioncheckout`, and `canviewstoresettings` (needed for the network/server info panel).
+
+### 3. Point Discourse at it
+
+Set `btcpay_server_url` to the testnet host, plus the API key, store ID and plan mappings. **Admin → Plugins → BTCPay** shows a `TESTNET` badge, the BTCPay version, the chain tip and the crypto codes the server reports — confirm it says testnet before you go further.
+
+### 4. Make webhooks reachable
+
+BTCPay must reach your Discourse over HTTPS. For a local dev Discourse, tunnel it:
+
+```bash
+cloudflared tunnel --url http://localhost:3000
+# or: ngrok http 3000
+```
+
+Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and point the BTCPay webhook at `https://<tunnel-host>/btcpay/webhook` with events `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`.
+
+### 5. Run a payment
+
+1. Open `/subscribe` on Discourse as a normal (non-admin) user.
+2. Pick a plan → **Pay with crypto** → BTCPay's modal opens over the page.
+3. Pay from a testnet wallet. Free coins:
+   - BTC testnet3: https://coinfaucet.eu/en/btc-testnet/ or https://bitcoinfaucet.uo1.net
+   - BTC signet: https://signetfaucet.com
+   - LTC testnet: https://testnet-faucet.com/ltc-testnet
+   - Monero stagenet: https://community.rino.io/faucet/stagenet/
+   - regtest: `bitcoin-cli -regtest generatetoaddress 101 <addr>` — no faucet needed
+4. Watch the states: as soon as the tx hits the mempool BTCPay fires `InvoiceProcessing` → the plugin marks the subscription **pending** (no group yet). After confirmations it fires `InvoiceSettled` → the user is added to the mapped group and the modal page flips to "Payment received".
+
+### 6. Verify
+
+```bash
+# in the Discourse container
+./launcher enter app
+rails c
+> DiscourseBtcpay.get_subscription(User.find_by(username: "tester").id)
+> DiscourseBtcpay.get_payments(User.find_by(username: "tester").id)
+```
+
+The payment record's `payment_method` is whatever settled it (`BTC`, `XMR`, `BTC-LightningNetwork`, …), not a hardcoded BTC.
+
+Also check **BTCPay → Store → Webhooks → Deliveries** for 200 responses. A 401 there means the secret doesn't match; a 415 means something other than `application/json` was posted.
+
+### 7. Test the failure paths
+
+| Scenario | How to trigger | Expected |
+|---|---|---|
+| Missed webhook | Disable the webhook in BTCPay, pay, then re-enable | Admin → BTCPay → **Sync with BTCPay** grants the group |
+| Abandoned invoice | Start a checkout, never pay | Stays `pending`, then `expired` on `InvoiceExpired` (or within 24h via reconcile) |
+| BTCPay down | Stop the container, click Pay | Error message on the page, no state written, reconcile retries next hour |
+| Bad secret | Change `btcpay_webhook_secret` | 401 in BTCPay delivery log; after 3 failures an admin PM |
+| Refund | Mark an invoice invalid in BTCPay | Status `disputed`, group access kept, admin PM |
 
 ## Development
 

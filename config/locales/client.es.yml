@@ -11,9 +11,15 @@ es:
         cancelled: "Cancelada"
         disputed: "En disputa"
 
+      subscribe:
+        title: "Suscripciones"
+        nav_label: "Suscribirse"
+        intro: "Paga en cripto a través de BTCPay Server. El acceso se concede en cuanto el pago se confirma."
+
       checkout:
         default_label: "Pagar en cripto"
         processing: "Procesando…"
+        settled: "Pago recibido: tu suscripción ya está activa."
         no_plans: "No hay planes de pago en cripto disponibles."
         failed: "No se pudo crear el pago. Inténtalo de nuevo."
 

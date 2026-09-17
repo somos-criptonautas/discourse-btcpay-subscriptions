@@ -31,6 +31,34 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       expect(response.status).to eq(404)
     end
 
+    it "returns modal data alongside the checkout URL" do
+      stub_request(:post, %r{/api/v1/stores/store/subscriptions/plans/plan-1/checkouts})
+        .to_return(
+          status: 200,
+          body: { checkoutUrl: "https://btcpay.example.com/i/INV9" }.to_json
+        )
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(response.parsed_body["invoice_id"]).to eq("INV9")
+      expect(response.parsed_body["modal_url"]).to eq(
+        "https://btcpay.example.com/modal/btcpay.js"
+      )
+    end
+
+    it "caches plan prices from BTCPay" do
+      stub = stub_request(:get, %r{/api/v1/stores/store/subscriptions/plans}).to_return(
+        status: 200,
+        body: [{ id: "plan-1", amount: "10", currency: "USD", period: "month" }].to_json
+      )
+
+      2.times { get "/btcpay/plans.json" }
+
+      expect(response.parsed_body["plans"].first["price"]).to eq("10")
+      expect(response.parsed_body["plans"].first["currency"]).to eq("USD")
+      expect(stub).to have_been_requested.once
+    end
+
     it "returns the BTCPay checkout URL" do
       stub_request(:post, %r{/api/v1/stores/store/subscriptions/plans/plan-1/checkouts})
         .to_return(
