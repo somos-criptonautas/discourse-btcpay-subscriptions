@@ -58,6 +58,7 @@ module DiscourseBtcpay
         "plan_name" => plan_label(plan_id),
         "group_name" => group_name,
         "status" => "active",
+        "needs_upgrade" => false,
         "updated_at" => Time.now.iso8601
       }.merge(subscriber_fields(subscriber)))
 

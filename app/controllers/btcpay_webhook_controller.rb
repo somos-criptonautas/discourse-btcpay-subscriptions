@@ -40,8 +40,16 @@ module DiscourseBtcpay
       Rails.logger.info("DiscourseBtcpay: Received webhook event: #{event_type}")
 
       case event_type
-      when "PlanStarted"
+      when "PlanStarted", "SubscriberActivated"
         handle_plan_started(event)
+      when "SubscriberCreated"
+        handle_subscriber_created(event)
+      when "SubscriberCharged"
+        handle_subscriber_charged(event)
+      when "SubscriberCredited"
+        handle_subscriber_credited(event)
+      when "SubscriberNeedUpgrade"
+        handle_need_upgrade(event)
       when "SubscriberDisabled"
         handle_subscriber_disabled(event)
       when "SubscriberPhaseChanged"
@@ -135,7 +143,7 @@ module DiscourseBtcpay
       )
     end
 
-    # reason is "Suspension" or "Expiration"
+    # reason is "Suspension" or "Expired"
     def handle_subscriber_disabled(event)
       user_id = resolve_user_id(event)
       return unless user_id
@@ -186,6 +194,16 @@ module DiscourseBtcpay
         payment_method = api.settled_payment_method(invoice_id)
       rescue BtcpayApi::ApiError => e
         Rails.logger.warn("DiscourseBtcpay: Could not fetch invoice details: #{e.message}")
+      end
+
+      if event["manuallyMarked"]
+        Rails.logger.warn("DiscourseBtcpay: Invoice #{invoice_id} was marked settled by hand")
+      end
+
+      if event["overPaid"]
+        DiscourseBtcpay.notify_admin("Invoice Overpaid",
+          "Invoice #{invoice_id} received more than the amount due. " \
+          "BTCPay can refund the difference from the invoice page.")
       end
 
       existing = DiscourseBtcpay.get_subscription(user_id)
@@ -269,11 +287,86 @@ module DiscourseBtcpay
       )
     end
 
+    # BTCPay has no "subscriber gained access again" event other than this one
+    # and PlanStarted, so an unsuspension arrives here.
+    def handle_subscriber_created(event)
+      user_id = resolve_user_id(event)
+      customer_id = customer_id_of(event)
+      return unless user_id && customer_id
+
+      sub = DiscourseBtcpay.get_subscription(user_id) || {}
+      return if sub["customer_id"] == customer_id
+
+      # Access is not granted here — only the identity is recorded.
+      DiscourseBtcpay.store_subscription(
+        user_id,
+        sub.merge("customer_id" => customer_id, "updated_at" => Time.now.iso8601)
+      )
+    end
+
+    # A renewal paid out of the subscriber's BTCPay credit balance: real money
+    # moved, but no invoice exists, so record it from the event itself.
+    def handle_subscriber_charged(event)
+      user_id = resolve_user_id(event)
+      subscriber = subscriber_of(event)
+      return unless user_id
+
+      manager = BtcpaySubscriptionManager.new
+      manager.record_payment(
+        user_id,
+        invoice_id: "credit-#{event["amount"]}-#{Time.now.to_i}",
+        amount: event["amount"],
+        currency: event["currency"],
+        payment_method: "credit",
+        status: "settled"
+      )
+      manager.update_from_subscriber(user_id: user_id, subscriber: subscriber) if subscriber
+    end
+
+    def handle_subscriber_credited(event)
+      user_id = resolve_user_id(event)
+      return unless user_id
+
+      BtcpaySubscriptionManager.new.record_payment(
+        user_id,
+        invoice_id: "credited-#{event["amount"]}-#{Time.now.to_i}",
+        amount: event["amount"],
+        currency: event["currency"],
+        payment_method: "credit",
+        status: "credited"
+      )
+    end
+
+    # The subscriber's plan can no longer carry them (plan withdrawn, seats
+    # exceeded). Nothing is revoked automatically — staff decides.
+    def handle_need_upgrade(event)
+      user_id = resolve_user_id(event)
+      return unless user_id
+
+      sub = DiscourseBtcpay.get_subscription(user_id)
+      if sub
+        DiscourseBtcpay.store_subscription(
+          user_id,
+          sub.merge("needs_upgrade" => true, "updated_at" => Time.now.iso8601)
+        )
+      end
+
+      user = User.find_by(id: user_id)
+      DiscourseBtcpay.notify_admin("Subscriber Needs Upgrade",
+        "BTCPay reports that '#{user&.username || user_id}' needs to upgrade their plan. " \
+        "Group access was left untouched.")
+    end
+
     # An invoice that was never paid in time. Only a pending record is
     # affected — a settled subscription keeps its access.
     def handle_invoice_expired(event)
       user_id = resolve_user_id(event)
       return unless user_id
+
+      # Money arrived but not enough: expiring silently would lose it.
+      if event["partiallyPaid"]
+        report_partial_payment(user_id, event["invoiceId"])
+      end
 
       DiscourseBtcpay.clear_payment_progress(user_id)
 
@@ -282,6 +375,17 @@ module DiscourseBtcpay
 
       Rails.logger.info("DiscourseBtcpay: Invoice expired for user #{user_id}, clearing pending subscription")
       BtcpaySubscriptionManager.new.deactivate(user_id: user_id, reason: "expired")
+    end
+
+    def report_partial_payment(user_id, invoice_id)
+      progress = DiscourseBtcpay.get_payment_progress(user_id)
+      received = Array(progress && progress["payments"]).map { |p| p["value"] }.compact.join(", ")
+      user = User.find_by(id: user_id)
+
+      DiscourseBtcpay.notify_admin("Invoice Underpaid",
+        "Invoice #{invoice_id} for '#{user&.username || user_id}' expired after receiving only " \
+        "#{received.presence || "a partial payment"}. No access was granted — refund or top up " \
+        "the invoice from BTCPay.")
     end
 
     def handle_invoice_invalid(event)

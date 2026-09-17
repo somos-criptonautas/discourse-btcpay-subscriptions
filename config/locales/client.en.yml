@@ -40,6 +40,7 @@ en:
         failed: "Failed to create checkout. Please try again."
 
       billing:
+        needs_upgrade: "Your plan needs to be upgraded — staff have been notified."
         trial: "Trial"
         trial_ends: "Trial ends %{date}"
         grace: "Payment overdue"

@@ -298,3 +298,7 @@
     color: var(--tertiary);
   }
 }
+
+.btcpay-sub-row.btcpay-needs-upgrade .value {
+  color: var(--danger);
+}

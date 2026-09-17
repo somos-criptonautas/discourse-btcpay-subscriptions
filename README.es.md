@@ -63,7 +63,7 @@ cd /var/discourse
 6. Ve a **Store Settings → Webhooks**
 7. Crea un webhook:
    - **URL:** `https://tudiscourse.com/btcpay/webhook`
-   - **Eventos:** `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
+   - **Eventos:** `PlanStarted`, `SubscriberCreated`, `SubscriberActivated`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `SubscriberCharged`, `SubscriberCredited`, `SubscriberNeedUpgrade`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
    - **Secreto:** genéralo y guárdalo — lo necesitas en los ajustes de Discourse
 8. En **Checkout Appearance**, asegúrate de permitir las URLs de redirección
 
@@ -117,13 +117,29 @@ Usa siempre la URL pública (`https://tudiscourse.com/btcpay/webhook`) como dest
 |---|---|
 | `PlanStarted` | Activa la suscripción y añade al usuario al grupo asignado |
 | `SubscriberPhaseChanged` | Trial/Normal/Grace actualizan el registro; Expired retira el grupo |
-| `SubscriberDisabled` | `Expiration` → vencida, `Suspension` → cancelada; saca del grupo |
+| `SubscriberDisabled` | `Expired` → vencida, `Suspension` → cancelada; saca del grupo |
 | `InvoiceProcessing` | Marca la suscripción como "pendiente" — todavía sin acceso |
 | `InvoiceReceivedPayment` | Registra un pago sin confirmar para mostrar el progreso |
 | `InvoicePaymentSettled` | Marca ese pago como confirmado |
 | `InvoiceSettled` | Registra el pago (y concede acceso si se perdió `PlanStarted`) |
 | `InvoiceExpired` | Limpia un registro `pending` — una factura impagada nunca da acceso |
 | `InvoiceInvalid` | Marca "en disputa", mantiene el acceso y avisa al admin |
+| `SubscriberCreated` | Guarda el customer id de BTCPay — sin conceder acceso |
+| `SubscriberActivated` | Restaura el acceso tras levantar una suspensión |
+| `SubscriberCharged` | Registra una renovación pagada con el saldo de BTCPay |
+| `SubscriberCredited` | Registra una recarga de saldo en el historial |
+| `SubscriberNeedUpgrade` | Marca la cuenta y avisa al admin por MP; no toca el acceso |
+
+En Greenfield no existen los eventos `InvoicePaidPartial` ni `InvoicePaidLate` — son estados heredados de BitPay. Esa misma información llega como banderas en los eventos anteriores y sí se trata:
+
+| Caso | Dónde llega | Qué hace el plugin |
+|---|---|---|
+| Pago parcial | `InvoiceExpired.partiallyPaid` | Avisa al admin por MP con el importe recibido — si no, el dinero se perdería en silencio |
+| Pago tardío | `InvoiceReceivedPayment.afterExpiration` | Se guarda en el registro de progreso del pago |
+| Pago de más | `InvoiceSettled.overPaid` | Avisa al admin para devolver la diferencia desde BTCPay |
+| Marcado a mano | `InvoiceSettled.manuallyMarked` | Se registra en el log para poder rastrearlo |
+
+Sin suscribir: `InvoiceCreated` (aún no hay nada que hacer) y `PaymentReminder` (BTCPay ya avisa al suscriptor por email).
 
 ### Pruebas, periodo de gracia y cambios de plan
 

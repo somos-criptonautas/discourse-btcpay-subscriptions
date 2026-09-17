@@ -63,7 +63,7 @@ cd /var/discourse
 6. Go to **Store Settings → Webhooks**
 7. Create a webhook:
    - **URL:** `https://yourdiscourse.com/btcpay/webhook`
-   - **Events:** `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
+   - **Events:** `PlanStarted`, `SubscriberCreated`, `SubscriberActivated`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `SubscriberCharged`, `SubscriberCredited`, `SubscriberNeedUpgrade`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
    - **Secret:** Generate and save this — you'll need it for Discourse settings
 8. Under **Checkout Appearance**, ensure redirect URLs are allowed
 
@@ -135,13 +135,29 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 |---|---|
 | `PlanStarted` | Activates the subscription, adds the user to the mapped group |
 | `SubscriberPhaseChanged` | Trial/Normal/Grace update the record; Expired revokes the group |
-| `SubscriberDisabled` | `Expiration` → expired, `Suspension` → cancelled; removes from group |
+| `SubscriberDisabled` | `Expired` → expired, `Suspension` → cancelled; removes from group |
 | `InvoiceProcessing` | Marks the subscription "pending" — no group access yet |
 | `InvoiceReceivedPayment` | Records an unconfirmed payment so the page can show progress |
 | `InvoicePaymentSettled` | Flips that payment to confirmed |
 | `InvoiceSettled` | Records the payment (and grants access if `PlanStarted` was missed) |
 | `InvoiceExpired` | Clears a `pending` record — an unpaid invoice never grants access |
 | `InvoiceInvalid` | Marks "disputed", keeps group access, notifies admin |
+| `SubscriberCreated` | Records the BTCPay customer id — no access granted |
+| `SubscriberActivated` | Restores access after an unsuspension |
+| `SubscriberCharged` | Records a renewal paid from the subscriber's BTCPay credit |
+| `SubscriberCredited` | Records a credit top-up in the payment history |
+| `SubscriberNeedUpgrade` | Flags the account and PMs an admin; access untouched |
+
+There is no `InvoicePaidPartial` or `InvoicePaidLate` event in Greenfield — those are legacy BitPay invoice statuses. The same facts arrive as flags on the events above and are handled:
+
+| Fact | Where it arrives | What the plugin does |
+|---|---|---|
+| Partial payment | `InvoiceExpired.partiallyPaid` | PMs an admin with the amount received — the money would otherwise vanish silently |
+| Late payment | `InvoiceReceivedPayment.afterExpiration` | Stored on the payment progress entry |
+| Overpayment | `InvoiceSettled.overPaid` | PMs an admin to refund the difference from BTCPay |
+| Marked paid by hand | `InvoiceSettled.manuallyMarked` | Logged, so a manual settle is traceable |
+
+Not subscribed: `InvoiceCreated` (nothing to do yet) and `PaymentReminder` (BTCPay emails the subscriber itself).
 
 ### Trials, grace periods and tier changes
 

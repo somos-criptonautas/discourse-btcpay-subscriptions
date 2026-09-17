@@ -107,6 +107,14 @@ export default class BtcpaySubscriptionStatus extends Component {
               </div>
             {{/if}}
 
+            {{#if this.subscription.needs_upgrade}}
+              <div class="btcpay-sub-row btcpay-needs-upgrade">
+                <span class="value">{{i18n
+                    "btcpay.billing.needs_upgrade"
+                  }}</span>
+              </div>
+            {{/if}}
+
             {{#if this.subscription.next_plan_name}}
               <div class="btcpay-sub-row btcpay-next-plan">
                 <span class="value">

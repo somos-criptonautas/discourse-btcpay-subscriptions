@@ -294,6 +294,90 @@ describe DiscourseBtcpay::BtcpayWebhookController do
     expect(DiscourseBtcpay.get_payment_progress(user.id)).to be_nil
   end
 
+  it "restores access when a suspended subscriber is activated again" do
+    deliver(type: "PlanStarted", subscriber: subscriber)
+    deliver(
+      type: "SubscriberDisabled",
+      reason: "Suspension",
+      subscriber: subscriber(active: false, suspended: true)
+    )
+    expect(group.reload.users).not_to include(user)
+
+    deliver(type: "SubscriberActivated", subscriber: subscriber)
+
+    expect(group.reload.users).to include(user)
+    expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("active")
+  end
+
+  it "records the customer id from SubscriberCreated without granting access" do
+    deliver(type: "SubscriberCreated", subscriber: subscriber)
+
+    expect(DiscourseBtcpay.get_subscription(user.id)["customer_id"]).to eq(customer_id)
+    expect(group.reload.users).not_to include(user)
+  end
+
+  it "records a renewal paid from credit" do
+    deliver(type: "PlanStarted", subscriber: subscriber)
+
+    deliver(
+      type: "SubscriberCharged",
+      amount: "10.00",
+      currency: "USD",
+      total: "90.00",
+      subscriber: subscriber
+    )
+
+    payment = DiscourseBtcpay.get_payments(user.id).last
+    expect(payment["payment_method"]).to eq("credit")
+    expect(payment["amount"]).to eq("10.00")
+  end
+
+  it "flags a subscriber that needs an upgrade and clears it on the next plan" do
+    Fabricate(:admin)
+    deliver(type: "PlanStarted", subscriber: subscriber)
+
+    expect {
+      deliver(type: "SubscriberNeedUpgrade", subscriber: subscriber)
+    }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
+    expect(DiscourseBtcpay.get_subscription(user.id)["needs_upgrade"]).to eq(true)
+
+    deliver(type: "PlanStarted", subscriber: subscriber)
+    expect(DiscourseBtcpay.get_subscription(user.id)["needs_upgrade"]).to eq(false)
+  end
+
+  it "alerts an admin when an invoice expires part-paid" do
+    Fabricate(:admin)
+    deliver(
+      type: "InvoiceReceivedPayment",
+      invoiceId: "INV5",
+      paymentMethodId: "BTC",
+      payment: { id: "pay-9", value: "0.0001" },
+      metadata: { discourse_user_id: user.id.to_s }
+    )
+
+    expect {
+      deliver(
+        type: "InvoiceExpired",
+        invoiceId: "INV5",
+        partiallyPaid: true,
+        metadata: { discourse_user_id: user.id.to_s }
+      )
+    }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
+  end
+
+  it "alerts an admin when an invoice is overpaid" do
+    Fabricate(:admin)
+
+    expect {
+      deliver(
+        type: "InvoiceSettled",
+        invoiceId: "INV1",
+        overPaid: true,
+        metadata: { discourse_user_id: user.id.to_s, discourse_plan_id: "plan-1" }
+      )
+    }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
+  end
+
   it "rate limits floods from one IP" do
     RateLimiter.enable
     RateLimiter.new(nil, "btcpay-webhook-127.0.0.1", 60, 1.minute).clear!

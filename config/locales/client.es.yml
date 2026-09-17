@@ -40,6 +40,7 @@ es:
         failed: "No se pudo crear el pago. Inténtalo de nuevo."
 
       billing:
+        needs_upgrade: "Tu plan necesita una mejora — el equipo ya está avisado."
         trial: "Prueba"
         trial_ends: "La prueba termina el %{date}"
         grace: "Pago pendiente"
