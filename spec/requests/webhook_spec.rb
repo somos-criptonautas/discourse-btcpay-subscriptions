@@ -378,6 +378,66 @@ describe DiscourseBtcpay::BtcpayWebhookController do
     }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
   end
 
+  it "alerts on BTCPay's own ExpiredPaidPartial event" do
+    Fabricate(:admin)
+
+    expect {
+      deliver(
+        type: "InvoiceExpiredPaidPartial",
+        invoiceId: "INV6",
+        metadata: { discourse_user_id: user.id.to_s }
+      )
+    }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
+  end
+
+  it "only alerts once when both expiry events arrive for one invoice" do
+    Fabricate(:admin)
+
+    expect {
+      deliver(
+        type: "InvoiceExpired",
+        invoiceId: "INV6",
+        partiallyPaid: true,
+        metadata: { discourse_user_id: user.id.to_s }
+      )
+      deliver(
+        type: "InvoiceExpiredPaidPartial",
+        invoiceId: "INV6",
+        metadata: { discourse_user_id: user.id.to_s }
+      )
+    }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
+  end
+
+  it "alerts when an invoice is paid after it expired" do
+    Fabricate(:admin)
+
+    expect {
+      deliver(
+        type: "InvoicePaidAfterExpiration",
+        invoiceId: "INV7",
+        metadata: { discourse_user_id: user.id.to_s }
+      )
+    }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
+
+    expect(group.reload.users).not_to include(user)
+  end
+
+  it "alerts on a refund without touching group access" do
+    Fabricate(:admin)
+    deliver(type: "PlanStarted", subscriber: subscriber)
+
+    expect {
+      deliver(
+        type: "InvoiceRefund",
+        invoiceId: "INV8",
+        pullPaymentId: "pp-1",
+        metadata: { discourse_user_id: user.id.to_s }
+      )
+    }.to change { Topic.where(archetype: Archetype.private_message).count }.by(1)
+
+    expect(group.reload.users).to include(user)
+  end
+
   it "rate limits floods from one IP" do
     RateLimiter.enable
     RateLimiter.new(nil, "btcpay-webhook-127.0.0.1", 60, 1.minute).clear!

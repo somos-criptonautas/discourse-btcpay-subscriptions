@@ -62,6 +62,17 @@ after_initialize do
       []
     end
 
+    # Some facts reach us twice — BTCPay fires both InvoiceExpired and
+    # InvoiceExpiredPaidPartial for one underpaid invoice — so alerts are
+    # deduplicated by a key rather than sent per delivery.
+    def self.first_alert?(key)
+      seen = ::PluginStore.get(PLUGIN_NAME, "alerts") || []
+      return false if seen.include?(key)
+
+      ::PluginStore.set(PLUGIN_NAME, "alerts", (seen << key).last(500))
+      true
+    end
+
     # Live payment progress for the invoice a user is currently paying.
     # Short-lived: cleared once the invoice settles, expires or goes invalid.
     def self.store_payment_progress(user_id, progress)

@@ -63,7 +63,7 @@ cd /var/discourse
 6. Go to **Store Settings → Webhooks**
 7. Create a webhook:
    - **URL:** `https://yourdiscourse.com/btcpay/webhook`
-   - **Events:** `PlanStarted`, `SubscriberCreated`, `SubscriberActivated`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `SubscriberCharged`, `SubscriberCredited`, `SubscriberNeedUpgrade`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
+   - **Events:** `PlanStarted`, `SubscriberCreated`, `SubscriberActivated`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `SubscriberCharged`, `SubscriberCredited`, `SubscriberNeedUpgrade`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceExpiredPaidPartial`, `InvoicePaidAfterExpiration`, `InvoiceInvalid`, `InvoiceRefund`
    - **Secret:** Generate and save this — you'll need it for Discourse settings
 8. Under **Checkout Appearance**, ensure redirect URLs are allowed
 
@@ -148,11 +148,19 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 | `SubscriberCredited` | Records a credit top-up in the payment history |
 | `SubscriberNeedUpgrade` | Flags the account and PMs an admin; access untouched |
 
-There is no `InvoicePaidPartial` or `InvoicePaidLate` event in Greenfield — those are legacy BitPay invoice statuses. The same facts arrive as flags on the events above and are handled:
+Three of BTCPay's invoice events are missing from the Greenfield swagger but do exist and appear in the webhook UI — the plugin handles all three:
 
-| Fact | Where it arrives | What the plugin does |
+| Webhook UI label | Event type | What the plugin does |
 |---|---|---|
-| Partial payment | `InvoiceExpired.partiallyPaid` | PMs an admin with the amount received — the money would otherwise vanish silently |
+| Invoice - Expired Paid Partial | `InvoiceExpiredPaidPartial` | PMs an admin with the amount received; clears the pending record |
+| Invoice - Paid Late | `InvoicePaidAfterExpiration` | PMs an admin — the invoice had expired, so BTCPay granted nothing and the money is sitting there |
+| Invoice - Refund | `InvoiceRefund` | PMs an admin with the pull payment id; group access is left alone |
+
+The same facts also arrive as flags on the documented events, and are handled there too, deduplicated per invoice so ticking both boxes does not double-alert:
+
+| Fact | Flag | What the plugin does |
+|---|---|---|
+| Partial payment | `InvoiceExpired.partiallyPaid` | Same alert as `InvoiceExpiredPaidPartial`, sent once |
 | Late payment | `InvoiceReceivedPayment.afterExpiration` | Stored on the payment progress entry |
 | Overpayment | `InvoiceSettled.overPaid` | PMs an admin to refund the difference from BTCPay |
 | Marked paid by hand | `InvoiceSettled.manuallyMarked` | Logged, so a manual settle is traceable |
@@ -264,7 +272,7 @@ cloudflared tunnel --url http://localhost:3000
 # or: ngrok http 3000
 ```
 
-Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and point the BTCPay webhook at `https://<tunnel-host>/btcpay/webhook` with events `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`.
+Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and point the BTCPay webhook at `https://<tunnel-host>/btcpay/webhook` with events `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceExpiredPaidPartial`, `InvoicePaidAfterExpiration`, `InvoiceInvalid`, `InvoiceRefund`.
 
 ### 5. Run a payment
 

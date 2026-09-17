@@ -62,6 +62,12 @@ module DiscourseBtcpay
         handle_payment_progress(event)
       when "InvoiceExpired"
         handle_invoice_expired(event)
+      when "InvoiceExpiredPaidPartial"
+        handle_expired_paid_partial(event)
+      when "InvoicePaidAfterExpiration"
+        handle_paid_after_expiration(event)
+      when "InvoiceRefund"
+        handle_invoice_refund(event)
       when "InvoiceInvalid"
         handle_invoice_invalid(event)
       else
@@ -200,7 +206,7 @@ module DiscourseBtcpay
         Rails.logger.warn("DiscourseBtcpay: Invoice #{invoice_id} was marked settled by hand")
       end
 
-      if event["overPaid"]
+      if event["overPaid"] && DiscourseBtcpay.first_alert?("over:#{invoice_id}")
         DiscourseBtcpay.notify_admin("Invoice Overpaid",
           "Invoice #{invoice_id} received more than the amount due. " \
           "BTCPay can refund the difference from the invoice page.")
@@ -364,9 +370,7 @@ module DiscourseBtcpay
       return unless user_id
 
       # Money arrived but not enough: expiring silently would lose it.
-      if event["partiallyPaid"]
-        report_partial_payment(user_id, event["invoiceId"])
-      end
+      report_partial_payment(user_id, event["invoiceId"]) if event["partiallyPaid"]
 
       DiscourseBtcpay.clear_payment_progress(user_id)
 
@@ -377,7 +381,52 @@ module DiscourseBtcpay
       BtcpaySubscriptionManager.new.deactivate(user_id: user_id, reason: "expired")
     end
 
+    # BTCPay's own event for the same situation, fired alongside (or instead
+    # of) InvoiceExpired depending on which boxes the admin ticked.
+    def handle_expired_paid_partial(event)
+      user_id = resolve_user_id(event)
+      return unless user_id
+
+      report_partial_payment(user_id, event["invoiceId"])
+      DiscourseBtcpay.clear_payment_progress(user_id)
+
+      sub = DiscourseBtcpay.get_subscription(user_id)
+      return unless sub && sub["status"] == "pending"
+
+      BtcpaySubscriptionManager.new.deactivate(user_id: user_id, reason: "expired")
+    end
+
+    # Paid late: the invoice had already expired, so BTCPay grants nothing and
+    # the money is sitting there. Staff has to settle or refund it by hand.
+    def handle_paid_after_expiration(event)
+      user_id = resolve_user_id(event)
+      invoice_id = event["invoiceId"]
+      return unless user_id
+      return unless DiscourseBtcpay.first_alert?("late:#{invoice_id}")
+
+      user = User.find_by(id: user_id)
+      DiscourseBtcpay.notify_admin("Invoice Paid Late",
+        "Invoice #{invoice_id} for '#{user&.username || user_id}' was paid after it expired. " \
+        "No access was granted — mark the invoice settled in BTCPay to honour it, or refund it.")
+    end
+
+    # A refund was created against the invoice (BTCPay opens a pull payment).
+    def handle_invoice_refund(event)
+      user_id = resolve_user_id(event)
+      invoice_id = event["invoiceId"]
+      return unless user_id
+      return unless DiscourseBtcpay.first_alert?("refund:#{invoice_id}")
+
+      user = User.find_by(id: user_id)
+      DiscourseBtcpay.notify_admin("Invoice Refunded",
+        "A refund was created for invoice #{invoice_id} ('#{user&.username || user_id}', " \
+        "pull payment #{event["pullPaymentId"] || "n/a"}). Group access was left untouched — " \
+        "remove it by hand if the refund is final.")
+    end
+
     def report_partial_payment(user_id, invoice_id)
+      return unless DiscourseBtcpay.first_alert?("partial:#{invoice_id}")
+
       progress = DiscourseBtcpay.get_payment_progress(user_id)
       received = Array(progress && progress["payments"]).map { |p| p["value"] }.compact.join(", ")
       user = User.find_by(id: user_id)
