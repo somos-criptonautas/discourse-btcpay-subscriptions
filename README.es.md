@@ -2,7 +2,7 @@
 
 [![Linting and Tests](https://github.com/somos-criptonautas/discourse-btcpay-subscriptions/actions/workflows/plugin-linting-and-tests.yml/badge.svg)](https://github.com/somos-criptonautas/discourse-btcpay-subscriptions/actions/workflows/plugin-linting-and-tests.yml)
 
-*[Read me in English](README.md)*
+[ENGLISH](README.md) | **ESPAÑOL**
 
 Integración de suscripciones de BTCPay Server para Discourse. Añade el pago con Bitcoin/Monero junto a Stripe en la página de suscripciones de tu foro.
 

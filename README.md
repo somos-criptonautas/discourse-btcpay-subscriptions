@@ -2,7 +2,7 @@
 
 [![Linting and Tests](https://github.com/somos-criptonautas/discourse-btcpay-subscriptions/actions/workflows/plugin-linting-and-tests.yml/badge.svg)](https://github.com/somos-criptonautas/discourse-btcpay-subscriptions/actions/workflows/plugin-linting-and-tests.yml)
 
-*[Léeme en español](README.es.md)*
+**ENGLISH** | [ESPAÑOL](README.es.md)
 
 BTCPay Server subscription integration for Discourse. Adds Bitcoin/Monero payment option alongside Stripe on your Discourse subscriptions page.
 
