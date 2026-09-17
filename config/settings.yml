@@ -1,4 +1,4 @@
-plugins:
+btcpay:
   btcpay_enabled:
     default: false
     client: true

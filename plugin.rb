@@ -11,6 +11,9 @@ enabled_site_setting :btcpay_enabled
 
 register_asset "stylesheets/btcpay.scss"
 
+# Without this the plugin list only offers the generic settings page.
+add_admin_route "btcpay.admin.title", "btcpay"
+
 after_initialize do
   module ::DiscourseBtcpay
     PLUGIN_NAME = "discourse-btcpay-subscriptions"

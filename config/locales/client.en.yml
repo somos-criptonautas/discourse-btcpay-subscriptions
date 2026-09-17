@@ -1,4 +1,10 @@
 en:
+  admin_js:
+    admin:
+      site_settings:
+        categories:
+          btcpay: "BTCPay Subscriptions"
+
   js:
     btcpay:
       loading: "Loading…"
