@@ -31,6 +31,7 @@ en:
       not_enabled: "BTCPay integration is not enabled."
       missing_config: "BTCPay Server is not fully configured."
       plan_not_found: "The requested plan was not found."
+      downgrade_unsupported: "Changing to a cheaper plan is not supported yet."
       rate_limited: "Too many checkout attempts. Please wait a moment and try again."
       checkout_failed: "Failed to create BTCPay checkout. Please try again."
       webhook_invalid_signature: "Invalid webhook signature."

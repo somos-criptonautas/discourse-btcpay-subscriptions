@@ -23,6 +23,16 @@ en:
         intro: "Pay with crypto through BTCPay Server. Access is granted as soon as the payment settles."
 
       checkout:
+        trial_days:
+          one: "%{count}-day trial"
+          other: "%{count}-day trial"
+        current_plan: "Current plan"
+        upgrade: "Upgrade"
+        downgrade_unavailable: "Downgrades aren't available yet — contact staff."
+        waiting_payment: "Payment seen — waiting for confirmation."
+        received: "%{value} received via %{method}"
+        confirmed: "confirmed"
+        unconfirmed: "unconfirmed"
         default_label: "Pay with crypto"
         processing: "Processing…"
         settled: "Payment received — your subscription is active."
@@ -30,6 +40,12 @@ en:
         failed: "Failed to create checkout. Please try again."
 
       billing:
+        trial: "Trial"
+        trial_ends: "Trial ends %{date}"
+        grace: "Payment overdue"
+        grace_ends: "Access continues until %{date}"
+        next_plan: "Switching to %{plan} on %{date}"
+        auto_renew_off: "Will not renew automatically"
         nav_label: "Billing"
         title: "Billing"
         intro: "Your current plan and payment history."

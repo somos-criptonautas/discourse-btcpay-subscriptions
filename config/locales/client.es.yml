@@ -23,6 +23,16 @@ es:
         intro: "Paga en cripto a través de BTCPay Server. El acceso se concede en cuanto el pago se confirma."
 
       checkout:
+        trial_days:
+          one: "prueba de %{count} día"
+          other: "prueba de %{count} días"
+        current_plan: "Plan actual"
+        upgrade: "Mejorar"
+        downgrade_unavailable: "Todavía no se puede bajar de plan — escribe al equipo."
+        waiting_payment: "Pago detectado — esperando confirmación."
+        received: "%{value} recibidos por %{method}"
+        confirmed: "confirmado"
+        unconfirmed: "sin confirmar"
         default_label: "Pagar en cripto"
         processing: "Procesando…"
         settled: "Pago recibido: tu suscripción ya está activa."
@@ -30,6 +40,12 @@ es:
         failed: "No se pudo crear el pago. Inténtalo de nuevo."
 
       billing:
+        trial: "Prueba"
+        trial_ends: "La prueba termina el %{date}"
+        grace: "Pago pendiente"
+        grace_ends: "El acceso continúa hasta el %{date}"
+        next_plan: "Cambiará a %{plan} el %{date}"
+        auto_renew_off: "No se renovará automáticamente"
         nav_label: "Facturación"
         title: "Facturación"
         intro: "Tu plan actual y tu historial de pagos."

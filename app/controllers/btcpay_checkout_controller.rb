@@ -24,6 +24,14 @@ module DiscourseBtcpay
       end
 
       existing = DiscourseBtcpay.get_subscription(current_user.id)
+
+      change = plan_change(existing, plan_id)
+      if change == :downgrade
+        return render json: {
+          error: I18n.t("discourse_btcpay.errors.downgrade_unsupported")
+        }, status: :unprocessable_entity
+      end
+
       metadata = {
         discourse_user_id: current_user.id.to_s,
         discourse_username: current_user.username,
@@ -37,7 +45,9 @@ module DiscourseBtcpay
           customer_selector: existing && existing["customer_id"],
           subscriber_metadata: metadata,
           invoice_metadata: metadata,
-          success_redirect_link: "#{Discourse.base_url}#{SiteSetting.btcpay_redirect_after_checkout}"
+          success_redirect_link: "#{Discourse.base_url}#{SiteSetting.btcpay_redirect_after_checkout}",
+          # An upgrade should take effect now, refunding the unused remainder
+          on_pay_behavior: change == :upgrade ? "HardMigration" : nil
         )
 
       checkout_url = result["url"] || result["redirectUrl"]
@@ -68,14 +78,22 @@ module DiscourseBtcpay
       sub = DiscourseBtcpay.get_subscription(current_user.id)
       payments = DiscourseBtcpay.get_payments(current_user.id)
 
+      progress = DiscourseBtcpay.get_payment_progress(current_user.id)
+
       if sub
         render json: {
           subscription: sub,
           payments: payments.last(20),
+          payment_progress: progress,
           portal_url: portal_url(sub["customer_id"])
         }
       else
-        render json: { subscription: nil, payments: [], portal_url: nil }
+        render json: {
+          subscription: nil,
+          payments: [],
+          payment_progress: progress,
+          portal_url: nil
+        }
       end
     end
 
@@ -103,6 +121,22 @@ module DiscourseBtcpay
     end
 
     private
+
+    # :new, :renewal, :upgrade or :downgrade, decided on BTCPay's prices so a
+    # crafted request cannot buy a cheaper tier as if it were an upgrade.
+    def plan_change(existing, plan_id)
+      return :new unless existing && existing["status"] == "active"
+
+      current_plan_id = existing["plan_id"]
+      return :renewal if current_plan_id == plan_id
+
+      prices = remote_plans.index_by { |p| p["id"] }
+      current = prices[current_plan_id]
+      wanted = prices[plan_id]
+      return :new if current.nil? || wanted.nil?
+
+      wanted["price"].to_f > current["price"].to_f ? :upgrade : :downgrade
+    end
 
     # Prices come from BTCPay, cached so a popular page does not hammer it.
     def remote_plans

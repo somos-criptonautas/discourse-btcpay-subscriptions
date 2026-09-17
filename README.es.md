@@ -63,7 +63,7 @@ cd /var/discourse
 6. Ve a **Store Settings → Webhooks**
 7. Crea un webhook:
    - **URL:** `https://tudiscourse.com/btcpay/webhook`
-   - **Eventos:** `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
+   - **Eventos:** `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
    - **Secreto:** genéralo y guárdalo — lo necesitas en los ajustes de Discourse
 8. En **Checkout Appearance**, asegúrate de permitir las URLs de redirección
 
@@ -119,9 +119,18 @@ Usa siempre la URL pública (`https://tudiscourse.com/btcpay/webhook`) como dest
 | `SubscriberPhaseChanged` | Trial/Normal/Grace actualizan el registro; Expired retira el grupo |
 | `SubscriberDisabled` | `Expiration` → vencida, `Suspension` → cancelada; saca del grupo |
 | `InvoiceProcessing` | Marca la suscripción como "pendiente" — todavía sin acceso |
+| `InvoiceReceivedPayment` | Registra un pago sin confirmar para mostrar el progreso |
+| `InvoicePaymentSettled` | Marca ese pago como confirmado |
 | `InvoiceSettled` | Registra el pago (y concede acceso si se perdió `PlanStarted`) |
 | `InvoiceExpired` | Limpia un registro `pending` — una factura impagada nunca da acceso |
 | `InvoiceInvalid` | Marca "en disputa", mantiene el acceso y avisa al admin |
+
+### Pruebas, periodo de gracia y cambios de plan
+
+- **Pruebas y gracia** vienen de la fase de la suscripción en BTCPay (`Trial`, `Normal`, `Grace`, `Expired`). `/billing` muestra "La prueba termina el …" y "Pago pendiente — el acceso continúa hasta el …"; el acceso solo se retira cuando BTCPay informa `Expired` o desactiva al suscriptor.
+- **Progreso del pago**: los pagos on-chain tardan de minutos a horas, así que `InvoiceReceivedPayment` / `InvoicePaymentSettled` se reflejan en un registro temporal y se muestran en vivo — "0.0004 recibidos por BTC — sin confirmar" — en lugar de dejar al pagador sin información. Se limpia cuando la factura se liquida, vence o se invalida.
+- **Mejoras de plan**: al elegir un plan más caro se crea el checkout con `onPayBehavior: HardMigration`, de modo que el nuevo plan empieza de inmediato y BTCPay reembolsa la parte no usada del anterior. El grupo nuevo se añade con `PlanStarted`.
+- **Bajar de plan aún no está implementado**: el plan más barato se muestra pero no se puede seleccionar, y el servidor lo rechaza con 422 aunque se salte el cliente. Los precios se comparan con los de BTCPay, nunca con los del cliente.
 
 ### Mecanismos de seguridad
 
@@ -150,7 +159,13 @@ Si el script del modal no puede cargarse (CSP, host de BTCPay caído), el botón
 ```
 btcpay_sub:{user_id}       → { customer_id, offering_id, plan_id, plan_name,
                                 group_name, status, phase, auto_renew,
-                                period_end, updated_at }
+                                period_end, trial_end, grace_period_end,
+                                next_plan_id, next_plan_name, next_plan_at,
+                                updated_at }
+
+btcpay_progress:{user_id}  → { invoice_id, payments: [ { value, method,
+                                status, settled, received_at } ], updated_at }
+                             (se limpia cuando la factura se resuelve)
 
 btcpay_payments:{user_id}  → [ { invoice_id, amount, currency, payment_method,
                                  status, paid_at }, ... ]
@@ -218,7 +233,7 @@ cloudflared tunnel --url http://localhost:3000
 # o: ngrok http 3000
 ```
 
-Luego configura el host del túnel en Discourse y apunta el webhook de BTCPay a `https://<host-del-túnel>/btcpay/webhook` con los eventos `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`.
+Luego configura el host del túnel en Discourse y apunta el webhook de BTCPay a `https://<host-del-túnel>/btcpay/webhook` con los eventos `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`.
 
 ### 5. Haz un pago
 

@@ -58,11 +58,8 @@ module DiscourseBtcpay
         "plan_name" => plan_label(plan_id),
         "group_name" => group_name,
         "status" => "active",
-        "phase" => subscriber && subscriber["phase"],
-        "auto_renew" => subscriber && subscriber["autoRenew"],
-        "period_end" => timestamp(subscriber && subscriber["periodEnd"]),
         "updated_at" => Time.now.iso8601
-      })
+      }.merge(subscriber_fields(subscriber)))
 
       if invoice_id
         record_payment(user_id,
@@ -124,11 +121,10 @@ module DiscourseBtcpay
       sub = DiscourseBtcpay.get_subscription(user_id)
       return unless sub
 
-      sub["phase"] = subscriber["phase"]
-      sub["auto_renew"] = subscriber["autoRenew"]
-      sub["period_end"] = timestamp(subscriber["periodEnd"])
-      sub["updated_at"] = Time.now.iso8601
-      DiscourseBtcpay.store_subscription(user_id, sub)
+      DiscourseBtcpay.store_subscription(
+        user_id,
+        sub.merge(subscriber_fields(subscriber)).merge("updated_at" => Time.now.iso8601)
+      )
     end
 
     # Mark as disputed (refund scenario) — keep access, notify admin
@@ -182,6 +178,24 @@ module DiscourseBtcpay
     end
 
     private
+
+    # Everything we mirror from BTCPay's SubscriberModel
+    def subscriber_fields(subscriber)
+      return {} if subscriber.blank?
+
+      scheduled = subscriber["scheduledPlan"] || subscriber["nextPlan"]
+
+      {
+        "phase" => subscriber["phase"],
+        "auto_renew" => subscriber["autoRenew"],
+        "period_end" => timestamp(subscriber["periodEnd"]),
+        "trial_end" => timestamp(subscriber["trialEnd"]),
+        "grace_period_end" => timestamp(subscriber["gracePeriodEnd"]),
+        "next_plan_id" => scheduled && scheduled["id"],
+        "next_plan_name" => scheduled && (scheduled["name"] || plan_label(scheduled["id"])),
+        "next_plan_at" => timestamp(subscriber["scheduledPlanActivatesAt"])
+      }
+    end
 
     def mapping_for(plan_id)
       DiscourseBtcpay.plan_mappings.find { |m| m["plan_id"] == plan_id }

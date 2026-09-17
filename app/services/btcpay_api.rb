@@ -36,12 +36,15 @@ module DiscourseBtcpay
     end
 
     # Returns a PlanCheckoutModel: { url, invoiceId, subscriber, ... }
+    # on_pay_behavior: "HardMigration" starts the new plan immediately and
+    # refunds the unused part of the old one — that is what a tier upgrade is.
     def create_plan_checkout(
       plan_id:,
       customer_selector: nil,
       subscriber_metadata: {},
       invoice_metadata: {},
-      success_redirect_link: nil
+      success_redirect_link: nil,
+      on_pay_behavior: nil
     )
       body = {
         storeId: @store_id,
@@ -49,6 +52,7 @@ module DiscourseBtcpay
         planId: plan_id,
         invoiceMetadata: invoice_metadata
       }
+      body[:onPayBehavior] = on_pay_behavior if on_pay_behavior.present?
       body[:customerSelector] = customer_selector if customer_selector.present?
       body[:newSubscriberMetadata] = subscriber_metadata if subscriber_metadata.present?
       body[:successRedirectLink] = success_redirect_link if success_redirect_link.present?

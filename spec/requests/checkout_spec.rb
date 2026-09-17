@@ -22,8 +22,30 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
     SiteSetting.btcpay_store_id = "store"
     SiteSetting.btcpay_offering_id = "off-1"
     SiteSetting.btcpay_plan_mappings = [
-      { plan_id: "plan-1", group_name: "premium", label: "Premium" }
+      { plan_id: "plan-1", group_name: "premium", label: "Premium" },
+      { plan_id: "plan-2", group_name: "vip", label: "VIP" }
     ].to_json
+  end
+
+  def stub_offering
+    stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
+      .to_return(
+        status: 200,
+        body: {
+          id: "off-1",
+          plans: [
+            { id: "plan-1", name: "Premium", price: "10", currency: "USD", recurringType: "Monthly" },
+            { id: "plan-2", name: "VIP", price: "25", currency: "USD", recurringType: "Monthly" }
+          ]
+        }.to_json
+      )
+  end
+
+  def subscribed_to(plan_id)
+    DiscourseBtcpay.store_subscription(
+      user.id,
+      { "customer_id" => "cust_abc123", "plan_id" => plan_id, "status" => "active" }
+    )
   end
 
   it "requires a logged in user" do
@@ -90,6 +112,63 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
 
       expect(stub).to have_been_requested
+    end
+
+    it "upgrades with HardMigration so the new tier starts now" do
+      Fabricate(:group, name: "vip")
+      stub_offering
+      subscribed_to("plan-1")
+
+      stub =
+        stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
+          .with { |req| JSON.parse(req.body)["onPayBehavior"] == "HardMigration" }
+          .to_return(status: 200, body: checkout_response.to_json)
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-2" }
+
+      expect(response.status).to eq(200)
+      expect(stub).to have_been_requested
+    end
+
+    it "refuses a downgrade" do
+      Fabricate(:group, name: "vip")
+      stub_offering
+      subscribed_to("plan-2")
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(response.status).to eq(422)
+      expect(response.parsed_body["error"]).to eq(
+        I18n.t("discourse_btcpay.errors.downgrade_unsupported")
+      )
+    end
+
+    it "renews the same plan without a migration behavior" do
+      stub_offering
+      subscribed_to("plan-1")
+
+      stub =
+        stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
+          .with { |req| !JSON.parse(req.body).key?("onPayBehavior") }
+          .to_return(status: 200, body: checkout_response.to_json)
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(stub).to have_been_requested
+    end
+
+    it "exposes live payment progress on the status endpoint" do
+      subscribed_to("plan-1")
+      DiscourseBtcpay.store_payment_progress(
+        user.id,
+        { "invoice_id" => "INV9", "payments" => [{ "value" => "0.0004", "settled" => false }] }
+      )
+      stub_request(:post, "https://btcpay.example.com/api/v1/subscriber-portal")
+        .to_return(status: 200, body: { url: "https://btcpay.example.com/portal/s" }.to_json)
+
+      get "/btcpay/subscription.json"
+
+      expect(response.parsed_body["payment_progress"]["invoice_id"]).to eq("INV9")
     end
 
     it "rate limits repeated checkout attempts" do

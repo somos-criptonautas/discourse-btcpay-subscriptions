@@ -63,7 +63,7 @@ cd /var/discourse
 6. Go to **Store Settings → Webhooks**
 7. Create a webhook:
    - **URL:** `https://yourdiscourse.com/btcpay/webhook`
-   - **Events:** `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
+   - **Events:** `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
    - **Secret:** Generate and save this — you'll need it for Discourse settings
 8. Under **Checkout Appearance**, ensure redirect URLs are allowed
 
@@ -137,9 +137,18 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 | `SubscriberPhaseChanged` | Trial/Normal/Grace update the record; Expired revokes the group |
 | `SubscriberDisabled` | `Expiration` → expired, `Suspension` → cancelled; removes from group |
 | `InvoiceProcessing` | Marks the subscription "pending" — no group access yet |
+| `InvoiceReceivedPayment` | Records an unconfirmed payment so the page can show progress |
+| `InvoicePaymentSettled` | Flips that payment to confirmed |
 | `InvoiceSettled` | Records the payment (and grants access if `PlanStarted` was missed) |
 | `InvoiceExpired` | Clears a `pending` record — an unpaid invoice never grants access |
 | `InvoiceInvalid` | Marks "disputed", keeps group access, notifies admin |
+
+### Trials, grace periods and tier changes
+
+- **Trials and grace** come from BTCPay's subscription phase (`Trial`, `Normal`, `Grace`, `Expired`). `/billing` shows "Trial ends …" during a trial and "Payment overdue — access continues until …" during grace; access is only revoked when BTCPay reports `Expired` or disables the subscriber.
+- **Payment progress**: on-chain payments take minutes to hours, so `InvoiceReceivedPayment` / `InvoicePaymentSettled` are mirrored into a short-lived record and shown live on the page — "0.0004 received via BTC — unconfirmed" — instead of leaving the payer staring at nothing. It is cleared when the invoice settles, expires or is invalidated.
+- **Upgrades**: a subscriber picking a more expensive plan gets a checkout with `onPayBehavior: HardMigration`, so the new tier starts immediately and BTCPay refunds the unused part of the old one. The new plan's group is added on `PlanStarted`.
+- **Downgrades are not implemented yet**: the cheaper plan is shown but not selectable, and the server rejects it with 422 even if the client is bypassed. Prices are compared against BTCPay's own plan prices, never the client's.
 
 ### Safety Mechanisms
 
@@ -167,7 +176,13 @@ If the modal script cannot load (CSP, offline BTCPay asset host), the button fal
 ```
 btcpay_sub:{user_id}       → { customer_id, offering_id, plan_id, plan_name,
                                 group_name, status, phase, auto_renew,
-                                period_end, updated_at }
+                                period_end, trial_end, grace_period_end,
+                                next_plan_id, next_plan_name, next_plan_at,
+                                updated_at }
+
+btcpay_progress:{user_id}  → { invoice_id, payments: [ { value, method,
+                                status, settled, received_at } ], updated_at }
+                             (cleared when the invoice resolves)
 
 btcpay_payments:{user_id}  → [ { invoice_id, amount, currency, payment_method,
                                   status, paid_at }, ... ]
@@ -233,7 +248,7 @@ cloudflared tunnel --url http://localhost:3000
 # or: ngrok http 3000
 ```
 
-Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and point the BTCPay webhook at `https://<tunnel-host>/btcpay/webhook` with events `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`.
+Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and point the BTCPay webhook at `https://<tunnel-host>/btcpay/webhook` with events `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceReceivedPayment`, `InvoicePaymentSettled`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`.
 
 ### 5. Run a payment
 

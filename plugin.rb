@@ -62,6 +62,20 @@ after_initialize do
       []
     end
 
+    # Live payment progress for the invoice a user is currently paying.
+    # Short-lived: cleared once the invoice settles, expires or goes invalid.
+    def self.store_payment_progress(user_id, progress)
+      ::PluginStore.set(PLUGIN_NAME, "progress:#{user_id}", progress)
+    end
+
+    def self.get_payment_progress(user_id)
+      ::PluginStore.get(PLUGIN_NAME, "progress:#{user_id}")
+    end
+
+    def self.clear_payment_progress(user_id)
+      ::PluginStore.remove(PLUGIN_NAME, "progress:#{user_id}")
+    end
+
     # One place that knows how subscription rows are stored, so the webhook,
     # the reconcile job and the admin list stop re-deriving it.
     def self.each_subscription

@@ -50,6 +50,8 @@ module DiscourseBtcpay
         handle_invoice_settled(event)
       when "InvoiceProcessing"
         handle_invoice_processing(event)
+      when "InvoiceReceivedPayment", "InvoicePaymentSettled"
+        handle_payment_progress(event)
       when "InvoiceExpired"
         handle_invoice_expired(event)
       when "InvoiceInvalid"
@@ -211,7 +213,46 @@ module DiscourseBtcpay
         payment_method: payment_method
       )
 
+      DiscourseBtcpay.clear_payment_progress(user_id)
       DiscourseBtcpay.mark_invoice_processed(invoice_id) if result[:success]
+    end
+
+    # On-chain payments take minutes to hours. These two events are the only
+    # signal the payer gets that anything is happening, so we mirror them into
+    # a short-lived record the billing page can poll.
+    def handle_payment_progress(event)
+      user_id = resolve_user_id(event)
+      return unless user_id
+
+      payment = event["payment"] || {}
+      settled = event["type"] == "InvoicePaymentSettled"
+
+      progress = DiscourseBtcpay.get_payment_progress(user_id) || {}
+      progress = {} if progress["invoice_id"] != event["invoiceId"]
+
+      entries = Array(progress["payments"])
+      entry = entries.find { |p| p["id"] == payment["id"] } if payment["id"].present?
+
+      if entry
+        entry["status"] = payment["status"] || (settled ? "Settled" : entry["status"])
+        entry["settled"] = settled || entry["settled"]
+      else
+        entries << {
+          "id" => payment["id"],
+          "value" => payment["value"],
+          "method" => event["paymentMethodId"],
+          "status" => payment["status"] || (settled ? "Settled" : "Processing"),
+          "settled" => settled,
+          "after_expiration" => event["afterExpiration"],
+          "received_at" => payment["receivedDate"] || Time.now.iso8601
+        }
+      end
+
+      DiscourseBtcpay.store_payment_progress(user_id, {
+        "invoice_id" => event["invoiceId"],
+        "payments" => entries.last(20),
+        "updated_at" => Time.now.iso8601
+      })
     end
 
     def handle_invoice_processing(event)
@@ -234,6 +275,8 @@ module DiscourseBtcpay
       user_id = resolve_user_id(event)
       return unless user_id
 
+      DiscourseBtcpay.clear_payment_progress(user_id)
+
       sub = DiscourseBtcpay.get_subscription(user_id)
       return unless sub && sub["status"] == "pending"
 
@@ -245,6 +288,8 @@ module DiscourseBtcpay
       invoice_id = event["invoiceId"]
       user_id = resolve_user_id(event)
       return unless user_id
+
+      DiscourseBtcpay.clear_payment_progress(user_id)
 
       BtcpaySubscriptionManager.new.mark_disputed(user_id: user_id, invoice_id: invoice_id)
     end

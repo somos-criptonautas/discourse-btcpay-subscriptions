@@ -44,6 +44,9 @@ export default class BtcpayCheckout extends Component {
   @tracked error = null;
   @tracked selectedPlan = null;
   @tracked settled = false;
+  @tracked currentPlanId = null;
+  @tracked currentPrice = null;
+  @tracked progress = null;
 
   pollTimer = null;
   pollCount = 0;
@@ -51,7 +54,7 @@ export default class BtcpayCheckout extends Component {
   constructor() {
     super(...arguments);
     if (this.isVisible) {
-      this.loadPlans();
+      this.load();
     }
   }
 
@@ -72,15 +75,61 @@ export default class BtcpayCheckout extends Component {
     );
   }
 
+  // Each plan carries how it relates to what the user already has
+  get offers() {
+    return this.plans.map((plan) => {
+      const isCurrent = plan.plan_id === this.currentPlanId;
+      const cheaper =
+        this.currentPrice !== null &&
+        parseFloat(plan.price) < parseFloat(this.currentPrice);
+
+      return {
+        ...plan,
+        isCurrent,
+        // Downgrades are a later feature; until then they are not selectable
+        isBlocked: !isCurrent && cheaper,
+        isUpgrade:
+          !isCurrent &&
+          this.currentPlanId &&
+          parseFloat(plan.price) > parseFloat(this.currentPrice),
+      };
+    });
+  }
+
+  get selectable() {
+    return this.offers.filter((o) => !o.isCurrent && !o.isBlocked);
+  }
+
+  async load() {
+    await Promise.all([this.loadPlans(), this.loadCurrent()]);
+
+    if (!this.selectedPlan && this.selectable.length === 1) {
+      this.selectedPlan = this.selectable[0].plan_id;
+    }
+  }
+
   async loadPlans() {
     try {
       const result = await ajax("/btcpay/plans");
       this.plans = result.plans || [];
-      if (this.plans.length === 1) {
-        this.selectedPlan = this.plans[0].plan_id;
-      }
     } catch (e) {
       this.error = extractError(e);
+    }
+  }
+
+  async loadCurrent() {
+    try {
+      const result = await ajax("/btcpay/subscription");
+      this.progress = result.payment_progress;
+
+      if (result.subscription?.status === "active") {
+        this.currentPlanId = result.subscription.plan_id;
+        this.currentPrice =
+          this.plans.find((p) => p.plan_id === this.currentPlanId)?.price ??
+          null;
+      }
+    } catch {
+      // Not fatal — the user can still start a checkout.
     }
   }
 
@@ -160,8 +209,12 @@ export default class BtcpayCheckout extends Component {
 
     try {
       const result = await ajax("/btcpay/subscription");
+      this.progress = result.payment_progress;
+
       if (result.subscription?.status === "active") {
         this.settled = true;
+        this.progress = null;
+        this.currentPlanId = result.subscription.plan_id;
         this.stopPolling();
         this.args.onSettled?.();
       }
@@ -179,18 +232,46 @@ export default class BtcpayCheckout extends Component {
           </div>
         {{/if}}
 
-        {{#if this.plans.length}}
+        {{#if this.progress}}
+          <div class="btcpay-progress alert alert-info">
+            <p class="btcpay-progress-headline">
+              {{i18n "btcpay.checkout.waiting_payment"}}
+            </p>
+            <ul class="btcpay-progress-list">
+              {{#each this.progress.payments as |payment|}}
+                <li class={{if payment.settled "settled" "pending"}}>
+                  {{i18n
+                    "btcpay.checkout.received"
+                    value=payment.value
+                    method=payment.method
+                  }}
+                  —
+                  {{if
+                    payment.settled
+                    (i18n "btcpay.checkout.confirmed")
+                    (i18n "btcpay.checkout.unconfirmed")
+                  }}
+                </li>
+              {{/each}}
+            </ul>
+          </div>
+        {{/if}}
+
+        {{#if this.offers.length}}
           <div class="btcpay-plans">
-            {{#each this.plans as |plan|}}
+            {{#each this.offers as |plan|}}
               <label
                 class="btcpay-plan-option
-                  {{if (eq this.selectedPlan plan.plan_id) 'selected'}}"
+                  {{if (eq this.selectedPlan plan.plan_id) 'selected'}}
+                  {{if plan.isCurrent 'current'}}
+                  {{if plan.isBlocked 'blocked'}}"
               >
                 <input
                   type="radio"
                   name="btcpay_plan"
                   value={{plan.plan_id}}
                   checked={{eq this.selectedPlan plan.plan_id}}
+                  disabled={{or plan.isCurrent plan.isBlocked}}
                   {{on "change" (fn this.selectPlan plan.plan_id)}}
                 />
                 <span class="btcpay-plan-label">{{plan.label}}</span>
@@ -199,6 +280,24 @@ export default class BtcpayCheckout extends Component {
                     {{plan.price}}
                     {{plan.currency}}
                     {{#if plan.interval}}/ {{plan.interval}}{{/if}}
+                  </span>
+                {{/if}}
+                {{#if plan.trial_days}}
+                  <span class="btcpay-plan-trial">
+                    {{i18n "btcpay.checkout.trial_days" count=plan.trial_days}}
+                  </span>
+                {{/if}}
+                {{#if plan.isCurrent}}
+                  <span class="btcpay-plan-badge current">
+                    {{i18n "btcpay.checkout.current_plan"}}
+                  </span>
+                {{else if plan.isUpgrade}}
+                  <span class="btcpay-plan-badge upgrade">
+                    {{i18n "btcpay.checkout.upgrade"}}
+                  </span>
+                {{else if plan.isBlocked}}
+                  <span class="btcpay-plan-badge blocked">
+                    {{i18n "btcpay.checkout.downgrade_unavailable"}}
                   </span>
                 {{/if}}
               </label>

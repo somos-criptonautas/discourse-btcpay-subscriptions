@@ -42,6 +42,24 @@ export default class BtcpaySubscriptionStatus extends Component {
     return this.subscription ? `btcpay-status-${this.subscription.status}` : "";
   }
 
+  get phase() {
+    return this.subscription?.phase;
+  }
+
+  get inTrial() {
+    return this.phase === "Trial";
+  }
+
+  // Grace means BTCPay is still waiting for the renewal payment; access is
+  // deliberately kept until the grace period ends.
+  get inGrace() {
+    return this.phase === "Grace";
+  }
+
+  get showsAutoRenewOff() {
+    return this.subscription?.auto_renew === false;
+  }
+
   <template>
     <div class="btcpay-user-billing">
       <h2>{{i18n "btcpay.billing.section_title"}}</h2>
@@ -65,6 +83,50 @@ export default class BtcpaySubscriptionStatus extends Component {
                 {{i18n (concat "btcpay.status." this.subscription.status)}}
               </span>
             </div>
+            {{#if this.inTrial}}
+              <div class="btcpay-sub-row btcpay-trial">
+                <span class="label">{{i18n "btcpay.billing.trial"}}</span>
+                <span class="value">
+                  {{i18n
+                    "btcpay.billing.trial_ends"
+                    date=this.subscription.trial_end
+                  }}
+                </span>
+              </div>
+            {{/if}}
+
+            {{#if this.inGrace}}
+              <div class="btcpay-sub-row btcpay-grace">
+                <span class="label">{{i18n "btcpay.billing.grace"}}</span>
+                <span class="value">
+                  {{i18n
+                    "btcpay.billing.grace_ends"
+                    date=this.subscription.grace_period_end
+                  }}
+                </span>
+              </div>
+            {{/if}}
+
+            {{#if this.subscription.next_plan_name}}
+              <div class="btcpay-sub-row btcpay-next-plan">
+                <span class="value">
+                  {{i18n
+                    "btcpay.billing.next_plan"
+                    plan=this.subscription.next_plan_name
+                    date=this.subscription.next_plan_at
+                  }}
+                </span>
+              </div>
+            {{/if}}
+
+            {{#if this.showsAutoRenewOff}}
+              <div class="btcpay-sub-row btcpay-no-renew">
+                <span class="value">{{i18n
+                    "btcpay.billing.auto_renew_off"
+                  }}</span>
+              </div>
+            {{/if}}
+
             {{#if this.subscription.period_end}}
               <div class="btcpay-sub-row">
                 <span class="label">{{i18n "btcpay.billing.period_end"}}</span>

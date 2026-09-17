@@ -242,3 +242,59 @@
     margin-bottom: 1.5em;
   }
 }
+
+.btcpay-progress {
+  .btcpay-progress-list {
+    margin: 0.5em 0 0;
+    padding-left: 1.2em;
+
+    li.pending {
+      color: var(--primary-medium);
+    }
+
+    li.settled {
+      color: var(--success);
+    }
+  }
+}
+
+.btcpay-plan-option {
+  &.current {
+    border-color: var(--success);
+  }
+
+  &.blocked {
+    opacity: 0.6;
+  }
+
+  .btcpay-plan-badge {
+    margin-left: 0.5em;
+    font-size: var(--font-down-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+
+    &.current {
+      color: var(--success);
+    }
+
+    &.upgrade {
+      color: var(--tertiary);
+    }
+  }
+
+  .btcpay-plan-trial {
+    margin-left: 0.5em;
+    color: var(--tertiary);
+    font-size: var(--font-down-1);
+  }
+}
+
+.btcpay-sub-row {
+  &.btcpay-grace .value {
+    color: var(--danger);
+  }
+
+  &.btcpay-trial .value {
+    color: var(--tertiary);
+  }
+}
