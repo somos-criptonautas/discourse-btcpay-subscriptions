@@ -8,6 +8,8 @@ module DiscourseBtcpay
     skip_before_action :redirect_to_login_if_required
     skip_before_action :check_xhr
 
+    # Invoice events tell us about money; subscriber events tell us about access.
+    # Both are needed: an invoice can settle before BTCPay starts the plan.
     def handle
       unless SiteSetting.btcpay_enabled
         return render json: { error: "disabled" }, status: :service_unavailable
@@ -38,16 +40,20 @@ module DiscourseBtcpay
       Rails.logger.info("DiscourseBtcpay: Received webhook event: #{event_type}")
 
       case event_type
+      when "PlanStarted"
+        handle_plan_started(event)
+      when "SubscriberDisabled"
+        handle_subscriber_disabled(event)
+      when "SubscriberPhaseChanged"
+        handle_phase_changed(event)
       when "InvoiceSettled"
         handle_invoice_settled(event)
       when "InvoiceProcessing"
         handle_invoice_processing(event)
-      when "InvoiceInvalid"
-        handle_invoice_invalid(event)
       when "InvoiceExpired"
         handle_invoice_expired(event)
-      when "SubscriptionExpired", "SubscriptionCancelled"
-        handle_subscription_ended(event)
+      when "InvoiceInvalid"
+        handle_invoice_invalid(event)
       else
         Rails.logger.info("DiscourseBtcpay: Ignoring unhandled event type: #{event_type}")
       end
@@ -76,41 +82,84 @@ module DiscourseBtcpay
       ActiveSupport::SecurityUtils.secure_compare(expected, signature)
     end
 
+    # Subscriber events carry the whole SubscriberModel
+    def subscriber_of(event)
+      event["subscriber"]
+    end
+
+    def customer_id_of(event)
+      subscriber_of(event)&.dig("customer", "id")
+    end
+
+    # We tag both the subscriber and the invoice with discourse_user_id at
+    # checkout, so either side of the payload can identify the user. The stored
+    # customer id is the fallback for subscribers created outside Discourse.
     def resolve_user_id(event)
-      metadata = event.dig("metadata") || {}
+      subscriber = subscriber_of(event)
 
-      # Primary: user_id in metadata
-      user_id = metadata["discourse_user_id"]
-      return user_id.to_i if user_id.present? && User.exists?(id: user_id.to_i)
+      candidates = [
+        event.dig("metadata", "discourse_user_id"),
+        subscriber&.dig("metadata", "discourse_user_id"),
+        subscriber&.dig("customer", "metadata", "discourse_user_id")
+      ]
 
-      # Fallback: check subscription metadata via API
-      subscription_id = event["subscriptionId"] || metadata["subscriptionId"]
-      if subscription_id
-        begin
-          api = BtcpayApi.new
-          sub = api.get_subscription(subscription_id)
-          sub_user_id = sub.dig("metadata", "discourse_user_id")
-          return sub_user_id.to_i if sub_user_id.present? && User.exists?(id: sub_user_id.to_i)
-        rescue BtcpayApi::ApiError => e
-          Rails.logger.warn("DiscourseBtcpay: Could not fetch subscription: #{e.message}")
-        end
+      candidates.each do |candidate|
+        next if candidate.blank?
+        return candidate.to_i if User.exists?(id: candidate.to_i)
       end
 
-      nil
+      DiscourseBtcpay.user_id_for_customer(customer_id_of(event) || event["customerId"])
     end
 
-    def resolve_plan_id(event)
-      event.dig("metadata", "planId") || event["planId"]
+    def plan_id_of(event)
+      subscriber_of(event)&.dig("plan", "id") || event.dig("metadata", "discourse_plan_id")
     end
 
-    def resolve_subscription_id(event)
-      event["subscriptionId"] || event.dig("metadata", "subscriptionId")
+    def handle_plan_started(event)
+      user_id = resolve_user_id(event)
+      subscriber = subscriber_of(event)
+      plan_id = plan_id_of(event)
+
+      unless user_id && plan_id
+        Rails.logger.error("DiscourseBtcpay: PlanStarted without a resolvable user/plan")
+        return
+      end
+
+      BtcpaySubscriptionManager.new.activate(
+        user_id: user_id,
+        customer_id: customer_id_of(event),
+        plan_id: plan_id,
+        subscriber: subscriber
+      )
+    end
+
+    # reason is "Suspension" or "Expiration"
+    def handle_subscriber_disabled(event)
+      user_id = resolve_user_id(event)
+      return unless user_id
+
+      reason = event["reason"].to_s.casecmp("suspension").zero? ? "cancelled" : "expired"
+      BtcpaySubscriptionManager.new.deactivate(user_id: user_id, reason: reason)
+    end
+
+    # phases: Trial, Normal, Grace, Expired
+    def handle_phase_changed(event)
+      user_id = resolve_user_id(event)
+      subscriber = subscriber_of(event)
+      return unless user_id && subscriber
+
+      manager = BtcpaySubscriptionManager.new
+
+      if subscriber["phase"].to_s.casecmp("expired").zero? || subscriber["isActive"] == false
+        manager.deactivate(user_id: user_id, reason: "expired")
+      else
+        manager.update_from_subscriber(user_id: user_id, subscriber: subscriber)
+      end
     end
 
     def handle_invoice_settled(event)
       invoice_id = event["invoiceId"]
 
-      # Idempotency: skip if already processed
       if DiscourseBtcpay.processed_invoice?(invoice_id)
         Rails.logger.info("DiscourseBtcpay: Invoice #{invoice_id} already processed, skipping")
         return
@@ -122,49 +171,39 @@ module DiscourseBtcpay
         return
       end
 
-      subscription_id = resolve_subscription_id(event)
-      plan_id = resolve_plan_id(event)
-
-      # Fetch invoice details for payment record
       amount = nil
       currency = nil
       payment_method = nil
+
       begin
         api = BtcpayApi.new
-        invoice = api.get_invoice(invoice_id)
+        invoice = api.invoice(invoice_id)
         amount = invoice["amount"]
         currency = invoice["currency"]
         # Whatever BTCPay actually took — BTC, XMR, LTC, Lightning, …
-        payment_method = api.settled_payment_method(invoice_id) || invoice["paymentMethod"]
+        payment_method = api.settled_payment_method(invoice_id)
       rescue BtcpayApi::ApiError => e
         Rails.logger.warn("DiscourseBtcpay: Could not fetch invoice details: #{e.message}")
       end
 
-      # If we don't have plan_id, try to get it from existing subscription or BTCPay
-      if plan_id.blank? && subscription_id.present?
-        existing = DiscourseBtcpay.get_subscription(user_id)
-        plan_id = existing&.dig("plan_id")
+      existing = DiscourseBtcpay.get_subscription(user_id)
+      plan_id = plan_id_of(event) || event.dig("metadata", "planId") || existing&.dig("plan_id")
+      customer_id = customer_id_of(event) || existing&.dig("customer_id")
 
-        if plan_id.blank?
-          begin
-            api ||= BtcpayApi.new
-            sub = api.get_subscription(subscription_id)
-            plan_id = sub["planId"]
-          rescue BtcpayApi::ApiError
-            # Already logged above if needed
-          end
-        end
-      end
+      manager = BtcpaySubscriptionManager.new
 
-      unless plan_id
-        Rails.logger.error("DiscourseBtcpay: No plan_id resolved for invoice #{invoice_id}")
+      if plan_id.blank?
+        # Money arrived but we cannot tell which tier — record it and let
+        # PlanStarted (or reconcile) grant access.
+        Rails.logger.warn("DiscourseBtcpay: No plan resolved for invoice #{invoice_id}, recording payment only")
+        manager.record_payment(user_id,
+          invoice_id: invoice_id, amount: amount, currency: currency, payment_method: payment_method)
         return
       end
 
-      manager = BtcpaySubscriptionManager.new
       result = manager.activate(
         user_id: user_id,
-        subscription_id: subscription_id,
+        customer_id: customer_id,
         plan_id: plan_id,
         invoice_id: invoice_id,
         amount: amount,
@@ -179,12 +218,14 @@ module DiscourseBtcpay
       user_id = resolve_user_id(event)
       return unless user_id
 
-      subscription_id = resolve_subscription_id(event)
-      plan_id = resolve_plan_id(event)
-      return unless subscription_id && plan_id
+      plan_id = plan_id_of(event) || event.dig("metadata", "planId")
+      return unless plan_id
 
-      manager = BtcpaySubscriptionManager.new
-      manager.mark_pending(user_id: user_id, subscription_id: subscription_id, plan_id: plan_id)
+      BtcpaySubscriptionManager.new.mark_pending(
+        user_id: user_id,
+        plan_id: plan_id,
+        customer_id: customer_id_of(event)
+      )
     end
 
     # An invoice that was never paid in time. Only a pending record is
@@ -205,39 +246,7 @@ module DiscourseBtcpay
       user_id = resolve_user_id(event)
       return unless user_id
 
-      manager = BtcpaySubscriptionManager.new
-      manager.mark_disputed(user_id: user_id, invoice_id: invoice_id)
-    end
-
-    def handle_subscription_ended(event)
-      subscription_id = resolve_subscription_id(event)
-      reason = event["type"] == "SubscriptionCancelled" ? "cancelled" : "expired"
-
-      # Find user by subscription_id in PluginStore
-      user_id = resolve_user_id(event)
-
-      unless user_id
-        # Search PluginStore for matching subscription_id
-        rows = PluginStoreRow.where(
-          plugin_name: DiscourseBtcpay::PLUGIN_NAME
-        ).where("key LIKE ?", "sub:%")
-
-        rows.each do |row|
-          data = JSON.parse(row.value) rescue next
-          if data["subscription_id"] == subscription_id
-            user_id = row.key.sub("sub:", "").to_i
-            break
-          end
-        end
-      end
-
-      unless user_id
-        Rails.logger.error("DiscourseBtcpay: No user found for subscription #{subscription_id} (#{reason})")
-        return
-      end
-
-      manager = BtcpaySubscriptionManager.new
-      manager.deactivate(user_id: user_id, reason: reason)
+      BtcpaySubscriptionManager.new.mark_disputed(user_id: user_id, invoice_id: invoice_id)
     end
   end
 end

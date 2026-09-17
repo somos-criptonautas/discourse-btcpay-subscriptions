@@ -1,66 +1,88 @@
 # frozen_string_literal: true
 
 module DiscourseBtcpay
+  # Greenfield client for BTCPay's subscriptions API (BTCPay 2.3+).
+  #
+  # Shape of that API, since it is not obvious: plans belong to an *offering*,
+  # subscribers are addressed per offering by a CustomerSelector (customer id,
+  # email, or Key:Value identity), and checkout/portal are store-agnostic
+  # top-level endpoints that take the store id in the body.
   class BtcpayApi
     class ApiError < StandardError; end
+    class NotFound < ApiError; end
 
     def initialize
-      @base_url = SiteSetting.btcpay_server_url.chomp("/")
+      @base_url = SiteSetting.btcpay_server_url.to_s.chomp("/")
       @api_key = SiteSetting.btcpay_api_key
       @store_id = SiteSetting.btcpay_store_id
+      @offering_id = SiteSetting.btcpay_offering_id
     end
 
     def configured?
-      @base_url.present? && @api_key.present? && @store_id.present?
+      [@base_url, @api_key, @store_id, @offering_id].all?(&:present?)
     end
 
-    # Create a plan checkout for a subscription
-    # Returns { "checkoutUrl" => "https://..." }
-    def create_plan_checkout(plan_id:, metadata: {}, redirect_url: nil)
+    # The offering carries its plans inline
+    def offering
+      get("/api/v1/stores/#{@store_id}/offerings/#{@offering_id}")
+    end
+
+    def plans
+      Array(offering["plans"])
+    end
+
+    def plan(plan_id)
+      get("/api/v1/stores/#{@store_id}/offerings/#{@offering_id}/plans/#{plan_id}")
+    end
+
+    # Returns a PlanCheckoutModel: { url, invoiceId, subscriber, ... }
+    def create_plan_checkout(
+      plan_id:,
+      customer_selector: nil,
+      subscriber_metadata: {},
+      invoice_metadata: {},
+      success_redirect_link: nil
+    )
       body = {
-        metadata: metadata
+        storeId: @store_id,
+        offeringId: @offering_id,
+        planId: plan_id,
+        invoiceMetadata: invoice_metadata
       }
-      body[:redirectUrl] = redirect_url if redirect_url
+      body[:customerSelector] = customer_selector if customer_selector.present?
+      body[:newSubscriberMetadata] = subscriber_metadata if subscriber_metadata.present?
+      body[:successRedirectLink] = success_redirect_link if success_redirect_link.present?
 
-      post("/api/v1/stores/#{@store_id}/subscriptions/plans/#{plan_id}/checkouts", body)
+      post("/api/v1/plan-checkout", body)
     end
 
-    # Get a specific subscription by ID
-    def get_subscription(subscription_id)
-      get("/api/v1/stores/#{@store_id}/subscriptions/#{subscription_id}")
+    # Returns a SubscriberModel: { isActive, isSuspended, phase, periodEnd, plan, customer, ... }
+    def subscriber(customer_selector)
+      get(
+        "/api/v1/stores/#{@store_id}/offerings/#{@offering_id}/subscribers/#{CGI.escape(customer_selector.to_s)}"
+      )
     end
 
-    # List all subscriptions for the store
-    def list_subscriptions(status: nil)
-      params = {}
-      params[:status] = status if status
-      get("/api/v1/stores/#{@store_id}/subscriptions", params)
+    # A short-lived URL where the subscriber manages their own subscription
+    def portal_session(customer_selector)
+      post(
+        "/api/v1/subscriber-portal",
+        { storeId: @store_id, offeringId: @offering_id, customerSelector: customer_selector }
+      )
     end
 
-    # Get subscription plans (offerings)
-    def list_plans
-      get("/api/v1/stores/#{@store_id}/subscriptions/plans")
-    end
-
-    # Server metadata: version + per-chain sync status
-    def server_info
-      get("/api/v1/server/info")
-    end
-
-    # Get a specific invoice
-    def get_invoice(invoice_id)
+    def invoice(invoice_id)
       get("/api/v1/stores/#{@store_id}/invoices/#{invoice_id}")
     end
 
-    # Get invoice payment methods
-    def get_invoice_payment_methods(invoice_id)
+    def invoice_payment_methods(invoice_id)
       get("/api/v1/stores/#{@store_id}/invoices/#{invoice_id}/payment-methods")
     end
 
     # Which crypto actually paid an invoice ("BTC", "XMR", "BTC-LightningNetwork", …).
     # nil when nothing is paid yet or BTCPay does not say.
     def settled_payment_method(invoice_id)
-      methods = get_invoice_payment_methods(invoice_id)
+      methods = invoice_payment_methods(invoice_id)
       return nil unless methods.is_a?(Array)
 
       paid =
@@ -71,14 +93,17 @@ module DiscourseBtcpay
       paid && (paid["paymentMethodId"] || paid["paymentMethod"] || paid["cryptoCode"])
     end
 
+    def server_info
+      get("/api/v1/server/info")
+    end
+
     private
 
     def get(path, params = {})
       uri = URI("#{@base_url}#{path}")
       uri.query = URI.encode_www_form(params) if params.any?
 
-      request = Net::HTTP::Get.new(uri)
-      execute(uri, request)
+      execute(uri, Net::HTTP::Get.new(uri))
     end
 
     def post(path, body = {})
@@ -103,10 +128,10 @@ module DiscourseBtcpay
       when 200..299
         body = response.body
         body.present? ? JSON.parse(body) : {}
-      when 401
-        raise ApiError, "BTCPay authentication failed. Check your API key."
+      when 401, 403
+        raise ApiError, "BTCPay authentication failed. Check your API key and its permissions."
       when 404
-        raise ApiError, "BTCPay resource not found: #{uri.path}"
+        raise NotFound, "BTCPay resource not found: #{uri.path}"
       else
         raise ApiError, "BTCPay API error #{response.code}: #{response.body&.truncate(200)}"
       end
@@ -114,7 +139,7 @@ module DiscourseBtcpay
       raise ApiError, "BTCPay connection timeout: #{e.message}"
     rescue JSON::ParserError => e
       raise ApiError, "Invalid JSON response from BTCPay: #{e.message}"
-    rescue Errno::ECONNREFUSED => e
+    rescue Errno::ECONNREFUSED, SocketError => e
       raise ApiError, "Cannot connect to BTCPay Server at #{@base_url}: #{e.message}"
     end
   end

@@ -12,7 +12,7 @@ discourse-btcpay-subscriptions/
 │   │   └── admin/btcpay_admin_controller.rb   # GET /admin/plugins/btcpay — network info + subscriptions
 │   ├── jobs/scheduled/btcpay_reconcile.rb     # Hourly tick, gated by btcpay_reconcile_interval_hours
 │   └── services/
-│       ├── btcpay_api.rb                      # Greenfield client (invoices, subscriptions, server info)
+│       ├── btcpay_api.rb                      # Greenfield client (offerings, plan-checkout, portal)
 │       └── btcpay_subscription_manager.rb     # Group add/remove + PluginStore read/write
 │
 ├── config/
@@ -49,12 +49,12 @@ discourse-btcpay-subscriptions/
 ## PluginStore Key Schema
 
 ```
-btcpay_sub:{user_id}        → JSON { subscription_id, plan_id, plan_name, group_name,
-                                      status, period_start, period_end }
+btcpay_sub:{user_id}        → JSON { customer_id, offering_id, plan_id, plan_name,
+                                      group_name, status, phase, auto_renew,
+                                      period_end, updated_at }
 
 btcpay_payments:{user_id}   → JSON [ { invoice_id, amount, currency, method, status, paid_at }, ... ]
 
-btcpay_plans                → JSON [ { btcpay_plan_id, name, group_name, price, currency, interval }, ... ]
 ```
 
 ## Request Flow
@@ -62,17 +62,17 @@ btcpay_plans                → JSON [ { btcpay_plan_id, name, group_name, price
 ```
 User clicks "Pay with crypto" on /subscribe
     → POST /btcpay/checkout (sends discourse_user_id in metadata)
-    → Plugin calls BTCPay Greenfield API → creates plan checkout
+    → Plugin POSTs /api/v1/plan-checkout (storeId + offeringId + planId)
     → Returns invoice id + modal url → BTCPay modal opens in place
       (falls back to redirecting to the checkout URL)
 
 BTCPay payment settles
     → POST /btcpay/webhook (signed with HMAC)
-    → Plugin validates signature
-    → Updates PluginStore + adds user to group
+    → InvoiceSettled records the payment
+    → PlanStarted activates the subscriber → user added to group
 
 Every btcpay_reconcile_interval_hours
-    → Sidekiq job calls BTCPay API
-    → Compares active subscriptions vs PluginStore
+    → Sidekiq job GETs each stored subscriber from BTCPay
+    → Compares isActive/phase vs PluginStore
     → Fixes any drift (missed webhooks)
 ```

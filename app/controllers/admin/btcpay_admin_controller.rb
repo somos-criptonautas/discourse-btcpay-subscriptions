@@ -26,6 +26,7 @@ module DiscourseBtcpay
         render json: {
           configured: true,
           server_url: SiteSetting.btcpay_server_url,
+          offering_id: SiteSetting.btcpay_offering_id,
           version: info && info["version"],
           fully_synched: info && info["fullySynched"],
           chain_height: chain && chain["chainHeight"],

@@ -8,19 +8,25 @@ module DiscourseBtcpay
 
     # Resolve plan_id to group_name from admin settings
     def group_for_plan(plan_id)
-      mappings = plan_mappings
-      mapping = mappings.find { |m| m["plan_id"] == plan_id }
-      mapping&.dig("group_name")
+      mapping_for(plan_id)&.dig("group_name")
     end
 
     def plan_label(plan_id)
-      mappings = plan_mappings
-      mapping = mappings.find { |m| m["plan_id"] == plan_id }
-      mapping&.dig("label") || plan_id
+      mapping_for(plan_id)&.dig("label") || plan_id
     end
 
-    # Activate subscription: store state + add to group
-    def activate(user_id:, subscription_id:, plan_id:, invoice_id: nil, amount: nil, currency: nil, payment_method: nil)
+    # Activate: store state + add to group. customer_id is BTCPay's customer id,
+    # which is how we address the subscriber from here on.
+    def activate(
+      user_id:,
+      customer_id:,
+      plan_id:,
+      invoice_id: nil,
+      amount: nil,
+      currency: nil,
+      payment_method: nil,
+      subscriber: nil
+    )
       user = User.find_by(id: user_id)
       unless user
         Rails.logger.error("DiscourseBtcpay: User #{user_id} not found for activation")
@@ -43,30 +49,21 @@ module DiscourseBtcpay
         return { success: false, error: :group_not_found }
       end
 
-      # Fetch subscription details from BTCPay for period info
-      period_start = nil
-      period_end = nil
-      begin
-        btcpay_sub = @api.get_subscription(subscription_id)
-        period_start = btcpay_sub["currentPeriodStart"]
-        period_end = btcpay_sub["currentPeriodEnd"]
-      rescue BtcpayApi::ApiError => e
-        Rails.logger.warn("DiscourseBtcpay: Could not fetch subscription details: #{e.message}")
-      end
+      subscriber ||= fetch_subscriber(customer_id)
 
-      # Store subscription state
       DiscourseBtcpay.store_subscription(user_id, {
-        "subscription_id" => subscription_id,
+        "customer_id" => customer_id,
+        "offering_id" => SiteSetting.btcpay_offering_id,
         "plan_id" => plan_id,
         "plan_name" => plan_label(plan_id),
         "group_name" => group_name,
         "status" => "active",
-        "period_start" => period_start,
-        "period_end" => period_end,
+        "phase" => subscriber && subscriber["phase"],
+        "auto_renew" => subscriber && subscriber["autoRenew"],
+        "period_end" => timestamp(subscriber && subscriber["periodEnd"]),
         "updated_at" => Time.now.iso8601
       })
 
-      # Record payment
       if invoice_id
         record_payment(user_id,
           invoice_id: invoice_id,
@@ -78,30 +75,29 @@ module DiscourseBtcpay
         )
       end
 
-      # Add to group (idempotent)
       group.add(user) if group.users.exclude?(user)
 
       Rails.logger.info("DiscourseBtcpay: Activated subscription for user #{user.username} → group #{group_name}")
       { success: true }
     end
 
-    # Mark subscription as pending (InvoiceProcessing — seen in mempool, not confirmed)
-    def mark_pending(user_id:, subscription_id:, plan_id:)
-      existing = DiscourseBtcpay.get_subscription(user_id)
+    # InvoiceProcessing — payment seen, not confirmed. No group access yet.
+    def mark_pending(user_id:, plan_id:, customer_id: nil)
+      existing = DiscourseBtcpay.get_subscription(user_id) || {}
 
-      data = (existing || {}).merge({
-        "subscription_id" => subscription_id,
+      data = existing.merge({
         "plan_id" => plan_id,
         "plan_name" => plan_label(plan_id),
         "status" => "pending",
         "updated_at" => Time.now.iso8601
       })
+      data["customer_id"] = customer_id if customer_id.present?
 
       DiscourseBtcpay.store_subscription(user_id, data)
       Rails.logger.info("DiscourseBtcpay: Marked subscription pending for user #{user_id}")
     end
 
-    # Deactivate subscription: update state + remove from group
+    # Deactivate: update state + remove from group
     def deactivate(user_id:, reason: "expired")
       user = User.find_by(id: user_id)
       sub = DiscourseBtcpay.get_subscription(user_id)
@@ -122,6 +118,17 @@ module DiscourseBtcpay
 
       Rails.logger.info("DiscourseBtcpay: Deactivated subscription for user #{user.username} (#{reason})")
       { success: true }
+    end
+
+    def update_from_subscriber(user_id:, subscriber:)
+      sub = DiscourseBtcpay.get_subscription(user_id)
+      return unless sub
+
+      sub["phase"] = subscriber["phase"]
+      sub["auto_renew"] = subscriber["autoRenew"]
+      sub["period_end"] = timestamp(subscriber["periodEnd"])
+      sub["updated_at"] = Time.now.iso8601
+      DiscourseBtcpay.store_subscription(user_id, sub)
     end
 
     # Mark as disputed (refund scenario) — keep access, notify admin
@@ -147,11 +154,9 @@ module DiscourseBtcpay
         "#{detail}")
     end
 
-    # Record a payment in history
     def record_payment(user_id, invoice_id:, amount: nil, currency: nil, payment_method: nil, status: "settled", paid_at: nil)
       payments = DiscourseBtcpay.get_payments(user_id)
 
-      # Dedup by invoice_id
       return if payments.any? { |p| p["invoice_id"] == invoice_id }
 
       payments << {
@@ -163,33 +168,41 @@ module DiscourseBtcpay
         "paid_at" => paid_at || Time.now.iso8601
       }
 
-      # Keep last 100 payments per user
-      payments = payments.last(100)
-      DiscourseBtcpay.store_payments(user_id, payments)
+      DiscourseBtcpay.store_payments(user_id, payments.last(100))
     end
 
-    # Get all subscriptions from PluginStore (for admin view)
+    # All subscriptions from PluginStore (admin view)
     def all_subscriptions
-      rows = PluginStoreRow.where(
-        plugin_name: DiscourseBtcpay::PLUGIN_NAME
-      ).where("key LIKE ?", "sub:%")
-
-      rows.filter_map do |row|
-        user_id = row.key.sub("sub:", "").to_i
+      DiscourseBtcpay.each_subscription.map do |user_id, data|
         user = User.find_by(id: user_id)
         next unless user
 
-        data = JSON.parse(row.value) rescue nil
-        next unless data
-
         data.merge("user_id" => user_id, "username" => user.username, "email" => user.email)
-      end
+      end.compact
     end
 
     private
 
-    def plan_mappings
-      DiscourseBtcpay.plan_mappings
+    def mapping_for(plan_id)
+      DiscourseBtcpay.plan_mappings.find { |m| m["plan_id"] == plan_id }
+    end
+
+    def fetch_subscriber(customer_id)
+      return nil if customer_id.blank?
+
+      @api.subscriber(customer_id)
+    rescue BtcpayApi::ApiError => e
+      Rails.logger.warn("DiscourseBtcpay: Could not fetch subscriber #{customer_id}: #{e.message}")
+      nil
+    end
+
+    # BTCPay sends unix timestamps; we store ISO8601
+    def timestamp(value)
+      return nil if value.blank?
+
+      Time.at(value.to_i).utc.iso8601
+    rescue TypeError, RangeError
+      nil
     end
   end
 end

@@ -4,6 +4,7 @@ es:
     btcpay_server_url: "URL de BTCPay Server"
     btcpay_api_key: "Clave de API Greenfield de BTCPay"
     btcpay_store_id: "ID de la tienda de BTCPay"
+    btcpay_offering_id: "ID de la oferta de BTCPay (contiene los planes)"
     btcpay_webhook_secret: "Secreto HMAC del webhook de BTCPay"
     btcpay_plan_mappings: "Correspondencia plan → grupo (array JSON)"
     btcpay_button_label: "Texto del botón de pago de BTCPay"

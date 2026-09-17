@@ -52,18 +52,18 @@ cd /var/discourse
 ### 2. Configure BTCPay Server
 
 1. Go to **BTCPay Server → Your Store → Subscriptions**
-2. Create an **Offering** and one or more **Plans** (e.g., "Premium Monthly — $10/mo")
-3. Note the **Plan ID** for each plan
+2. Create an **Offering** and one or more **Plans** priced in fiat (e.g., "Premium Monthly — $10/mo")
+3. Note the **Offering ID** and the **Plan ID** of each plan — plans live inside an offering
 4. Go to **Account → Manage Account → API Keys**
 5. Create an API key with these permissions:
-   - `btcpay.store.canviewinvoices`
-   - `btcpay.store.cancreateinvoice`
-   - `btcpay.store.canviewsubscriptions`
-   - `btcpay.store.cancreatesubscriptioncheckout`
+   - `btcpay.store.canviewofferings` — read the offering and its plans, read subscribers
+   - `btcpay.store.canmanagesubscribers` — create plan checkouts and portal sessions
+   - `btcpay.store.canviewinvoices` — read settled invoices for the payment history
+   - `btcpay.store.canviewstoresettings` — server/network panel in the Discourse admin page
 6. Go to **Store Settings → Webhooks**
 7. Create a webhook:
    - **URL:** `https://yourdiscourse.com/btcpay/webhook`
-   - **Events:** `InvoiceSettled`, `InvoiceProcessing`, `InvoiceExpired`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`
+   - **Events:** `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`
    - **Secret:** Generate and save this — you'll need it for Discourse settings
 8. Under **Checkout Appearance**, ensure redirect URLs are allowed
 
@@ -77,6 +77,7 @@ Go to **Admin → Settings** and search for `btcpay`:
 | `btcpay_server_url` | `https://btcpay.yourdomain.com` |
 | `btcpay_api_key` | Your Greenfield API key |
 | `btcpay_store_id` | Your BTCPay Store ID |
+| `btcpay_offering_id` | The Offering ID holding your plans |
 | `btcpay_webhook_secret` | The secret from step 7 above |
 | `btcpay_plan_mappings` | See below |
 | `btcpay_button_label` | `Pay with crypto` |
@@ -125,12 +126,13 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 
 | BTCPay Event | Plugin Action |
 |---|---|
-| `InvoiceProcessing` | Marks subscription as "pending" in PluginStore |
-| `InvoiceSettled` | Activates subscription, adds user to group, records payment |
+| `PlanStarted` | Activates the subscription, adds the user to the mapped group |
+| `SubscriberPhaseChanged` | Trial/Normal/Grace update the record; Expired revokes the group |
+| `SubscriberDisabled` | `Expiration` → expired, `Suspension` → cancelled; removes from group |
+| `InvoiceProcessing` | Marks the subscription "pending" — no group access yet |
+| `InvoiceSettled` | Records the payment (and grants access if `PlanStarted` was missed) |
 | `InvoiceExpired` | Clears a `pending` record — an unpaid invoice never grants access |
-| `InvoiceInvalid` | Marks as "disputed", keeps group access, notifies admin |
-| `SubscriptionExpired` | Removes user from group, marks expired |
-| `SubscriptionCancelled` | Removes user from group, marks cancelled |
+| `InvoiceInvalid` | Marks "disputed", keeps group access, notifies admin |
 
 ### Safety Mechanisms
 
@@ -156,16 +158,14 @@ If the modal script cannot load (CSP, offline BTCPay asset host), the button fal
 ## PluginStore Schema
 
 ```
-btcpay_sub:{user_id}       → { subscription_id, plan_id, plan_name, group_name,
-                                status, period_start, period_end, updated_at }
+btcpay_sub:{user_id}       → { customer_id, offering_id, plan_id, plan_name,
+                                group_name, status, phase, auto_renew,
+                                period_end, updated_at }
 
 btcpay_payments:{user_id}  → [ { invoice_id, amount, currency, payment_method,
                                   status, paid_at }, ... ]
 
-btcpay_plans                → [ { btcpay_plan_id, name, group_name, price,
-                                  currency, interval }, ... ]
-
-processed_invoices          → [ "invoice_id_1", "invoice_id_2", ... ] (last 1000)
+processed_invoices         → [ "invoice_id_1", "invoice_id_2", ... ] (last 1000)
 
 hmac_failures               → { count, last_at }
 ```
@@ -210,8 +210,8 @@ Testnet sync takes a few hours; regtest is instant but you mine your own blocks.
 ### 2. Set up the store
 
 1. Store → Wallets → BTC → connect an existing wallet with a **tpub** (testnet xpub) or let BTCPay generate one. Save the seed.
-2. Store → Subscriptions → create an Offering and a Plan priced in **USD** (e.g. 10 USD / month). BTCPay converts USD to crypto at checkout using its rate provider — Discourse only ever shows the USD figure.
-3. Account → API Keys → create a key with `canviewinvoices`, `cancreateinvoice`, `canviewsubscriptions`, `cancreatesubscriptioncheckout`, and `canviewstoresettings` (needed for the network/server info panel).
+2. Store → Subscriptions → create an Offering and a Plan priced in **USD** (e.g. 10 USD / month). Copy the Offering ID into `btcpay_offering_id` and each Plan ID into `btcpay_plan_mappings`. BTCPay converts USD to crypto at checkout using its rate provider — Discourse only ever shows the USD figure.
+3. Account → API Keys → create a key with `canviewofferings`, `canmanagesubscribers`, `canviewinvoices` and `canviewstoresettings`.
 
 ### 3. Point Discourse at it
 
@@ -226,7 +226,7 @@ cloudflared tunnel --url http://localhost:3000
 # or: ngrok http 3000
 ```
 
-Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and point the BTCPay webhook at `https://<tunnel-host>/btcpay/webhook` with events `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`, `SubscriptionExpired`, `SubscriptionCancelled`.
+Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and point the BTCPay webhook at `https://<tunnel-host>/btcpay/webhook` with events `PlanStarted`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `InvoiceProcessing`, `InvoiceSettled`, `InvoiceExpired`, `InvoiceInvalid`.
 
 ### 5. Run a payment
 
@@ -238,7 +238,7 @@ Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and
    - LTC testnet: https://testnet-faucet.com/ltc-testnet
    - Monero stagenet: https://community.rino.io/faucet/stagenet/
    - regtest: `bitcoin-cli -regtest generatetoaddress 101 <addr>` — no faucet needed
-4. Watch the states: as soon as the tx hits the mempool BTCPay fires `InvoiceProcessing` → the plugin marks the subscription **pending** (no group yet). After confirmations it fires `InvoiceSettled` → the user is added to the mapped group and the modal page flips to "Payment received".
+4. Watch the states: as soon as the tx hits the mempool BTCPay fires `InvoiceProcessing` → the plugin marks the subscription **pending** (no group yet). After confirmations `InvoiceSettled` records the payment and `PlanStarted` grants the group; the page flips to "Payment received".
 
 ### 6. Verify
 

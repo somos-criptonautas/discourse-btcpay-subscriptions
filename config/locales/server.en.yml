@@ -4,6 +4,7 @@ en:
     btcpay_server_url: "BTCPay Server URL"
     btcpay_api_key: "BTCPay Greenfield API key"
     btcpay_store_id: "BTCPay Store ID"
+    btcpay_offering_id: "BTCPay Offering ID (holds the subscription plans)"
     btcpay_webhook_secret: "BTCPay webhook HMAC secret"
     btcpay_plan_mappings: "Plan-to-group mappings (JSON array)"
     btcpay_button_label: "BTCPay payment button label"

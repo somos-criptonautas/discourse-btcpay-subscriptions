@@ -9,6 +9,8 @@ module Jobs
     LAST_RUN_KEY = "reconcile_last_run_at"
     PENDING_TIMEOUT = 24.hours
 
+    # BTCPay has no "list all subscribers" endpoint — subscribers are addressed
+    # one selector at a time — so we walk our own records and ask about each.
     def execute(args = {})
       return unless SiteSetting.btcpay_enabled
       return unless due?(force: args && args[:force])
@@ -20,111 +22,84 @@ module Jobs
 
       Rails.logger.info("DiscourseBtcpay: Starting reconciliation")
 
-      begin
-        remote_subs = api.list_subscriptions
-      rescue DiscourseBtcpay::BtcpayApi::ApiError => e
-        # No stamp: a BTCPay outage must not burn this interval's window,
-        # so the next hourly tick retries instead of waiting N hours.
-        Rails.logger.error("DiscourseBtcpay: Reconciliation failed to fetch subscriptions: #{e.message}")
-        return
-      end
-
-      return unless remote_subs.is_a?(Array)
-
-      mark_ran
-
-      remote_by_id = remote_subs.index_by { |s| s["id"] }
-      local_rows = PluginStoreRow.where(
-        plugin_name: DiscourseBtcpay::PLUGIN_NAME
-      ).where("key LIKE ?", "sub:%")
-
-      synced = 0
+      checked = 0
       fixed = 0
+      failures = 0
 
-      # Check each local subscription against BTCPay
-      local_rows.each do |row|
-        user_id = row.key.sub("sub:", "").to_i
-        local_data = JSON.parse(row.value) rescue next
-        sub_id = local_data["subscription_id"]
-        next unless sub_id
+      DiscourseBtcpay.each_subscription do |user_id, local|
+        customer_id = local["customer_id"]
 
-        remote = remote_by_id[sub_id]
+        if customer_id.blank?
+          fixed += 1 if expire_stale_pending(manager, user_id, local)
+          next
+        end
 
-        if remote.nil?
-          # Subscription no longer exists in BTCPay
-          if local_data["status"] == "active"
-            Rails.logger.warn("DiscourseBtcpay: Subscription #{sub_id} not found remotely, deactivating user #{user_id}")
-            manager.deactivate(user_id: user_id, reason: "expired")
-            fixed += 1
-          elsif local_data["status"] == "pending" && stale_pending?(local_data)
-            Rails.logger.warn("DiscourseBtcpay: Pending subscription #{sub_id} never settled, expiring user #{user_id}")
+        begin
+          remote = api.subscriber(customer_id)
+        rescue DiscourseBtcpay::BtcpayApi::NotFound
+          # The subscriber is gone from BTCPay entirely
+          if local["status"] == "active"
+            Rails.logger.warn("DiscourseBtcpay: Subscriber #{customer_id} not found remotely, deactivating user #{user_id}")
             manager.deactivate(user_id: user_id, reason: "expired")
             fixed += 1
           end
           next
+        rescue DiscourseBtcpay::BtcpayApi::ApiError => e
+          Rails.logger.error("DiscourseBtcpay: Could not fetch subscriber #{customer_id}: #{e.message}")
+          failures += 1
+          next
         end
 
-        remote_status = remote["status"]&.downcase
-        local_status = local_data["status"]
-
-        # Sync active → expired/cancelled drift
-        if local_status == "active" && %w[expired cancelled].include?(remote_status)
-          Rails.logger.info("DiscourseBtcpay: Fixing drift: user #{user_id} #{local_status} → #{remote_status}")
-          manager.deactivate(user_id: user_id, reason: remote_status)
-          fixed += 1
-
-        # Sync expired/cancelled → active drift (missed settlement webhook)
-        elsif %w[expired cancelled pending].include?(local_status) && remote_status == "active"
-          Rails.logger.info("DiscourseBtcpay: Fixing drift: user #{user_id} #{local_status} → active")
-          manager.activate(
-            user_id: user_id,
-            subscription_id: sub_id,
-            plan_id: local_data["plan_id"]
-          )
-          fixed += 1
-
-        # Update period dates if active and dates changed
-        elsif local_status == "active" && remote_status == "active"
-          new_start = remote["currentPeriodStart"]
-          new_end = remote["currentPeriodEnd"]
-
-          if new_start != local_data["period_start"] || new_end != local_data["period_end"]
-            local_data["period_start"] = new_start
-            local_data["period_end"] = new_end
-            local_data["updated_at"] = Time.now.iso8601
-            DiscourseBtcpay.store_subscription(user_id, local_data)
-          end
-        end
-
-        synced += 1
+        checked += 1
+        fixed += 1 if reconcile_one(manager, user_id, local, remote)
       end
 
-      # Check for remote active subscriptions with no local record (missed activation)
-      remote_subs.each do |remote|
-        next unless remote["status"]&.downcase == "active"
+      # A tick that could not reach BTCPay at all should not consume the
+      # window — the next hourly tick retries instead of waiting N hours.
+      mark_ran unless checked.zero? && failures.positive?
 
-        user_id = remote.dig("metadata", "discourse_user_id")&.to_i
-        next unless user_id && user_id > 0
-
-        local = DiscourseBtcpay.get_subscription(user_id)
-        next if local && local["status"] == "active"
-
-        plan_id = remote["planId"]
-        next unless plan_id
-
-        Rails.logger.info("DiscourseBtcpay: Found orphan active subscription #{remote["id"]} for user #{user_id}")
-        manager.activate(
-          user_id: user_id,
-          subscription_id: remote["id"],
-          plan_id: plan_id
-        )
-        fixed += 1
-      end
-
-      Rails.logger.info("DiscourseBtcpay: Reconciliation complete. Synced: #{synced}, Fixed: #{fixed}")
+      Rails.logger.info(
+        "DiscourseBtcpay: Reconciliation complete. Checked: #{checked}, Fixed: #{fixed}, Failures: #{failures}"
+      )
     end
 
     private
+
+    def reconcile_one(manager, user_id, local, remote)
+      active_remotely = remote["isActive"] && !remote["isSuspended"]
+      local_status = local["status"]
+      plan_id = remote.dig("plan", "id") || local["plan_id"]
+
+      if local_status == "active" && !active_remotely
+        reason = remote["isSuspended"] ? "cancelled" : "expired"
+        Rails.logger.info("DiscourseBtcpay: Fixing drift: user #{user_id} active → #{reason}")
+        manager.deactivate(user_id: user_id, reason: reason)
+        return true
+      end
+
+      if %w[expired cancelled pending].include?(local_status) && active_remotely && plan_id
+        Rails.logger.info("DiscourseBtcpay: Fixing drift: user #{user_id} #{local_status} → active")
+        manager.activate(
+          user_id: user_id,
+          customer_id: local["customer_id"],
+          plan_id: plan_id,
+          subscriber: remote
+        )
+        return true
+      end
+
+      manager.update_from_subscriber(user_id: user_id, subscriber: remote) if local_status == "active"
+      false
+    end
+
+    # A pending record with no customer id never got as far as a subscriber.
+    def expire_stale_pending(manager, user_id, local)
+      return false unless local["status"] == "pending" && stale_pending?(local)
+
+      Rails.logger.warn("DiscourseBtcpay: Pending subscription never settled, expiring user #{user_id}")
+      manager.deactivate(user_id: user_id, reason: "expired")
+      true
+    end
 
     def due?(force: false)
       return true if force
@@ -145,11 +120,10 @@ module Jobs
       PluginStore.set(DiscourseBtcpay::PLUGIN_NAME, LAST_RUN_KEY, Time.now.iso8601)
     end
 
-    # A pending record means an invoice was seen but never settled. BTCPay
-    # invoices expire in minutes; a day is a generous grace period before we
-    # treat the payment as abandoned.
-    def stale_pending?(local_data)
-      updated = Time.parse(local_data["updated_at"].to_s) rescue nil
+    # BTCPay invoices expire in minutes; a day is a generous grace period
+    # before we treat the payment as abandoned.
+    def stale_pending?(local)
+      updated = Time.parse(local["updated_at"].to_s) rescue nil
       updated.nil? || updated < PENDING_TIMEOUT.ago
     end
   end

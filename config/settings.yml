@@ -12,6 +12,9 @@ btcpay:
   btcpay_store_id:
     default: ""
     description: "BTCPay Store ID"
+  btcpay_offering_id:
+    default: ""
+    description: "BTCPay Offering ID that holds your subscription plans"
   btcpay_webhook_secret:
     default: ""
     secret: true

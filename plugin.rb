@@ -62,6 +62,29 @@ after_initialize do
       []
     end
 
+    # One place that knows how subscription rows are stored, so the webhook,
+    # the reconcile job and the admin list stop re-deriving it.
+    def self.each_subscription
+      return enum_for(:each_subscription) unless block_given?
+
+      ::PluginStoreRow
+        .where(plugin_name: PLUGIN_NAME)
+        .where("key LIKE ?", "sub:%")
+        .find_each do |row|
+          data = JSON.parse(row.value) rescue next
+          yield row.key.sub("sub:", "").to_i, data
+        end
+    end
+
+    def self.user_id_for_customer(customer_id)
+      return nil if customer_id.blank?
+
+      each_subscription do |user_id, data|
+        return user_id if data["customer_id"] == customer_id
+      end
+      nil
+    end
+
     def self.processed_invoice?(invoice_id)
       processed = ::PluginStore.get(PLUGIN_NAME, "processed_invoices") || []
       processed.include?(invoice_id)
