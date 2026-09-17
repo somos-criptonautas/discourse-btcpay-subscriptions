@@ -48,7 +48,8 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
 
     it "rate limits repeated checkout attempts" do
       RateLimiter.enable
-      RateLimiter.clear_all!
+      RateLimiter.new(user, "btcpay-checkout", 5, 1.minute).clear!
+      RateLimiter.new(user, "btcpay-checkout-hourly", 20, 1.hour).clear!
 
       stub_request(:post, %r{/checkouts})
         .to_return(status: 200, body: { checkoutUrl: "https://x/i/abc" }.to_json)
@@ -56,6 +57,8 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       6.times { post "/btcpay/checkout.json", params: { plan_id: "plan-1" } }
 
       expect(response.status).to eq(429)
+    ensure
+      RateLimiter.disable
     end
 
     it "lists plans straight from the JSON setting" do

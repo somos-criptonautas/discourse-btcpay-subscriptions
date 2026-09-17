@@ -83,10 +83,12 @@ describe DiscourseBtcpay::BtcpayWebhookController do
 
   it "rate limits floods from one IP" do
     RateLimiter.enable
-    RateLimiter.clear_all!
+    RateLimiter.new(nil, "btcpay-webhook-127.0.0.1", 60, 1.minute).clear!
 
     61.times { post_webhook(payload, headers: { "BTCPay-Sig" => sign(payload) }) }
 
     expect(response.status).to eq(429)
+  ensure
+    RateLimiter.disable
   end
 end
