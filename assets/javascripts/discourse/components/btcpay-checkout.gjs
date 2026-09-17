@@ -8,6 +8,7 @@ import { ajax } from "discourse/lib/ajax";
 import { extractError } from "discourse/lib/ajax-error";
 import { eq, not, or } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
+import { btcpayText } from "../lib/btcpay-text";
 
 // The modal only tells us "closed", never "settled" — BTCPay decides that
 // asynchronously once the payment confirms. So we ask our own endpoint.
@@ -64,9 +65,10 @@ export default class BtcpayCheckout extends Component {
   }
 
   get buttonLabel() {
-    return (
-      this.siteSettings.btcpay_button_label ||
-      i18n("btcpay.checkout.default_label")
+    return btcpayText(
+      this.siteSettings,
+      "btcpay_button_label",
+      "btcpay.checkout.default_label"
     );
   }
 
@@ -171,8 +173,6 @@ export default class BtcpayCheckout extends Component {
   <template>
     {{#if this.isVisible}}
       <div class="btcpay-checkout-section">
-        <h3 class="btcpay-heading">{{this.buttonLabel}}</h3>
-
         {{#if this.settled}}
           <div class="btcpay-settled alert alert-success">
             {{i18n "btcpay.checkout.settled"}}

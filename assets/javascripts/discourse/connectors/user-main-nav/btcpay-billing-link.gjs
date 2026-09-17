@@ -8,6 +8,7 @@ export default class BtcpayBillingLink extends Component {
   @service siteSettings;
   @service currentUser;
 
+  // Only on your own profile — /billing always shows the viewer's own data.
   get isVisible() {
     return (
       this.siteSettings.btcpay_enabled &&
@@ -18,8 +19,8 @@ export default class BtcpayBillingLink extends Component {
   <template>
     {{#if this.isVisible}}
       <li class="btcpay-billing-nav">
-        <LinkTo @route="user.billing" @model={{@outletArgs.model}}>
-          {{icon "bitcoin-sign"}}
+        <LinkTo @route="btcpayBilling">
+          {{icon "credit-card"}}
           <span>{{i18n "btcpay.billing.nav_label"}}</span>
         </LinkTo>
       </li>

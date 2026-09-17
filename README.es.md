@@ -80,7 +80,7 @@ Ve a **Admin → Ajustes** y busca `btcpay`:
 | `btcpay_offering_id` | El ID de la oferta que contiene tus planes |
 | `btcpay_webhook_secret` | El secreto del paso 7 |
 | `btcpay_plan_mappings` | Ver abajo |
-| `btcpay_button_label` | `Pagar en cripto` |
+| `btcpay_button_label` | vacío (usa la traducción) |
 | `btcpay_reconcile_interval_hours` | `4` |
 
 **Correspondencia de planes** — un único array JSON con todos los planes:
@@ -95,6 +95,13 @@ Ve a **Admin → Ajustes** y busca `btcpay`:
 Si el JSON no es válido se registra el error y se trata como "sin planes": la página de pago dirá que no hay planes disponibles.
 
 El `group_name` debe coincidir con un grupo existente de Discourse. Créalo antes en **Admin → Grupos**.
+
+### Personalizar los textos
+
+Todos los textos visibles están traducidos (el plugin incluye inglés y español) y se pueden sobrescribir de dos formas:
+
+- **Ajustes del sitio** para los textos principales: `btcpay_button_label`, `btcpay_tickets_title`, `btcpay_tickets_intro`, `btcpay_billing_title`, `btcpay_billing_intro`, `btcpay_nav_label`. Si los dejas vacíos se usa la traducción del idioma de cada usuario; si los rellenas, ese texto se muestra a todo el mundo.
+- **Admin → Personalizar → Texto** para cualquier otro texto, incluidas versiones por idioma. Busca `btcpay.` para ver todas las claves.
 
 ### 4. Configuración de Nginx
 
@@ -128,12 +135,12 @@ Usa siempre la URL pública (`https://tudiscourse.com/btcpay/webhook`) como dest
 
 ### Flujo del usuario
 
-1. El usuario abre `/subscribe` (enlazado desde la barra lateral)
+1. El usuario abre `/tickets` (enlazado desde la barra lateral)
 2. Elige un plan — el precio mostrado es el que cobra BTCPay, consultado en vivo y cacheado 10 minutos
 3. Pulsa **Pagar en cripto** → el checkout de BTCPay se abre en un modal sobre la página; no sale de Discourse
 4. Paga con cualquier método que acepte la tienda (BTC, XMR, LTC, Lightning…)
 5. `InvoiceProcessing` marca la suscripción como pendiente; la página consulta el estado y muestra "Pago recibido" cuando `InvoiceSettled` concede el grupo
-6. El estado y el historial de pagos están en `/my/billing`, también enlazado desde el perfil
+6. El estado y el historial de pagos están en `/billing`, también enlazado desde el perfil
 7. Renovación: BTCPay envía el aviso → paga → mantiene el acceso. Impago: llega el webhook → sale del grupo
 
 Si el script del modal no puede cargarse (CSP, host de BTCPay caído), el botón recurre a la redirección completa a BTCPay y de vuelta a `btcpay_redirect_after_checkout`.
@@ -215,7 +222,7 @@ Luego configura el host del túnel en Discourse y apunta el webhook de BTCPay a 
 
 ### 5. Haz un pago
 
-1. Abre `/subscribe` en Discourse con un usuario normal (no admin).
+1. Abre `/tickets` en Discourse con un usuario normal (no admin).
 2. Elige un plan → **Pagar en cripto** → se abre el modal de BTCPay sobre la página.
 3. Paga desde una cartera de testnet. Monedas gratis:
    - BTC testnet3: https://coinfaucet.eu/en/btc-testnet/ o https://bitcoinfaucet.uo1.net

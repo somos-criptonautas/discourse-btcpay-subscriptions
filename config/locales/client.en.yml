@@ -17,9 +17,9 @@ en:
         cancelled: "Cancelled"
         disputed: "Disputed"
 
-      subscribe:
-        title: "Subscriptions"
-        nav_label: "Subscribe"
+      tickets:
+        title: "Tickets"
+        nav_label: "Tickets"
         intro: "Pay with crypto through BTCPay Server. Access is granted as soon as the payment settles."
 
       checkout:
@@ -31,7 +31,10 @@ en:
 
       billing:
         nav_label: "Billing"
-        title: "Crypto Subscription"
+        title: "Billing"
+        intro: "Your current plan and payment history."
+        section_title: "Crypto Subscription"
+        login_required: "Log in to see your subscription."
         plan: "Plan"
         status: "Status"
         period_end: "Current period ends"

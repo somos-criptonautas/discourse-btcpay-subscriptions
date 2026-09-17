@@ -17,9 +17,9 @@ es:
         cancelled: "Cancelada"
         disputed: "En disputa"
 
-      subscribe:
-        title: "Suscripciones"
-        nav_label: "Suscribirse"
+      tickets:
+        title: "Entradas"
+        nav_label: "Entradas"
         intro: "Paga en cripto a través de BTCPay Server. El acceso se concede en cuanto el pago se confirma."
 
       checkout:
@@ -31,7 +31,10 @@ es:
 
       billing:
         nav_label: "Facturación"
-        title: "Suscripción en cripto"
+        title: "Facturación"
+        intro: "Tu plan actual y tu historial de pagos."
+        section_title: "Suscripción en cripto"
+        login_required: "Inicia sesión para ver tu suscripción."
         plan: "Plan"
         status: "Estado"
         period_end: "El periodo actual termina"

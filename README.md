@@ -80,7 +80,7 @@ Go to **Admin → Settings** and search for `btcpay`:
 | `btcpay_offering_id` | The Offering ID holding your plans |
 | `btcpay_webhook_secret` | The secret from step 7 above |
 | `btcpay_plan_mappings` | See below |
-| `btcpay_button_label` | `Pay with crypto` |
+| `btcpay_button_label` | blank (uses the translation) |
 
 **Plan mappings** — one JSON array, all plans in it:
 
@@ -94,6 +94,13 @@ Go to **Admin → Settings** and search for `btcpay`:
 Invalid JSON is logged and treated as "no plans" — the checkout page will say no plans are available.
 
 The `group_name` must match an existing Discourse group. Create the group first in **Admin → Groups**.
+
+### Customising the text
+
+Every user-facing string is translated (English and Spanish ship with the plugin) and can be overridden two ways:
+
+- **Site settings** for the headline strings — `btcpay_button_label`, `btcpay_tickets_title`, `btcpay_tickets_intro`, `btcpay_billing_title`, `btcpay_billing_intro`, `btcpay_nav_label`. Leave one blank and the translation for each viewer's locale is used; fill it in and that exact text is shown to everyone.
+- **Admin → Customize → Text** for anything else, including per-locale overrides. Search for `btcpay.` to find every key.
 
 ### 4. Nginx Configuration
 
@@ -145,12 +152,12 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 
 ### User Flow
 
-1. User opens `/subscribe` (linked from the sidebar)
+1. User opens `/tickets` (linked from the sidebar)
 2. Picks a plan — the price shown is the fiat price BTCPay charges, fetched live and cached for 10 minutes
 3. Clicks **Pay with crypto** → BTCPay's checkout opens in a modal over the page; the user never leaves Discourse
 4. Pays with any method the store accepts (BTC, XMR, LTC, Lightning, …)
 5. `InvoiceProcessing` marks the subscription pending; the page polls and flips to "Payment received" once `InvoiceSettled` grants the group
-6. Status and payment history live at `/my/billing`, also linked from the user profile nav
+6. Status and payment history live at `/billing`, also linked from the user profile nav
 7. On renewal: BTCPay sends the reminder → user pays → access continues. On lapse: webhook fires → user removed from group
 
 If the modal script cannot load (CSP, offline BTCPay asset host), the button falls back to a full redirect to BTCPay and back to `btcpay_redirect_after_checkout`.
@@ -230,7 +237,7 @@ Then in Discourse set `DISCOURSE_HOSTNAME`/`force_https` to the tunnel host, and
 
 ### 5. Run a payment
 
-1. Open `/subscribe` on Discourse as a normal (non-admin) user.
+1. Open `/tickets` on Discourse as a normal (non-admin) user.
 2. Pick a plan → **Pay with crypto** → BTCPay's modal opens over the page.
 3. Pay from a testnet wallet. Free coins:
    - BTC testnet3: https://coinfaucet.eu/en/btc-testnet/ or https://bitcoinfaucet.uo1.net

@@ -1,12 +1,10 @@
-import { i18n } from "discourse-i18n";
 import BtcpayCheckout from "../components/btcpay-checkout";
+import BtcpayPageHeader from "../components/btcpay-page-header";
 import BtcpaySubscriptionStatus from "../components/btcpay-subscription-status";
 
 export default <template>
-  <div class="btcpay-subscribe-page">
-    <h1>{{i18n "btcpay.subscribe.title"}}</h1>
-    <p class="btcpay-subscribe-intro">{{i18n "btcpay.subscribe.intro"}}</p>
-
+  <div class="btcpay-page btcpay-tickets-page">
+    <BtcpayPageHeader @page="tickets" />
     <BtcpayCheckout />
     <BtcpaySubscriptionStatus />
   </div>

@@ -1,11 +1,15 @@
 import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
 import { concat } from "@ember/helper";
+import { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
 import { extractError } from "discourse/lib/ajax-error";
+import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
 export default class BtcpaySubscriptionStatus extends Component {
+  @service currentUser;
+
   @tracked subscription = null;
   @tracked payments = [];
   @tracked portalUrl = null;
@@ -14,7 +18,11 @@ export default class BtcpaySubscriptionStatus extends Component {
 
   constructor() {
     super(...arguments);
-    this.load();
+    if (this.currentUser) {
+      this.load();
+    } else {
+      this.loading = false;
+    }
   }
 
   async load() {
@@ -36,9 +44,11 @@ export default class BtcpaySubscriptionStatus extends Component {
 
   <template>
     <div class="btcpay-user-billing">
-      <h2>{{i18n "btcpay.billing.title"}}</h2>
+      <h2>{{i18n "btcpay.billing.section_title"}}</h2>
 
-      {{#if this.loading}}
+      {{#if (not this.currentUser)}}
+        <p class="btcpay-anon">{{i18n "btcpay.billing.login_required"}}</p>
+      {{else if this.loading}}
         <p>{{i18n "btcpay.loading"}}</p>
       {{else if this.error}}
         <div class="btcpay-error alert alert-error">{{this.error}}</div>

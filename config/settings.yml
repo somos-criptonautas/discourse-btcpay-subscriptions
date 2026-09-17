@@ -23,16 +23,37 @@ btcpay:
     default: "[]"
     textarea: true
     description: 'One JSON array, e.g. [{"plan_id":"xxx","group_name":"premium","label":"Premium Monthly"}]'
+  # Text overrides: blank means "use the translation for the viewer's locale".
   btcpay_button_label:
-    default: "Pay with crypto"
+    default: ""
     client: true
-    description: "Label for the BTCPay payment button"
+    description: "Payment button text. Blank uses the translated default."
+  btcpay_tickets_title:
+    default: ""
+    client: true
+    description: "Heading on the /tickets page. Blank uses the translated default."
+  btcpay_tickets_intro:
+    default: ""
+    client: true
+    description: "Intro paragraph on /tickets. Blank uses the translated default."
+  btcpay_billing_title:
+    default: ""
+    client: true
+    description: "Heading on the /billing page. Blank uses the translated default."
+  btcpay_billing_intro:
+    default: ""
+    client: true
+    description: "Intro paragraph on /billing. Blank uses the translated default."
+  btcpay_nav_label:
+    default: ""
+    client: true
+    description: "Sidebar and profile link text. Blank uses the translated default."
   btcpay_reconcile_interval_hours:
     default: 4
     min: 1
     max: 168
     description: "How often the reconciliation job runs (in hours)"
   btcpay_redirect_after_checkout:
-    default: "/my/billing"
+    default: "/billing"
     client: true
     description: "Discourse path to redirect to after BTCPay checkout"

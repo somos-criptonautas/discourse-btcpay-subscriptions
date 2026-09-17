@@ -7,7 +7,12 @@ en:
     btcpay_offering_id: "BTCPay Offering ID (holds the subscription plans)"
     btcpay_webhook_secret: "BTCPay webhook HMAC secret"
     btcpay_plan_mappings: "Plan-to-group mappings (JSON array)"
-    btcpay_button_label: "BTCPay payment button label"
+    btcpay_button_label: "Payment button text (blank = translated default)"
+    btcpay_tickets_title: "Heading on /tickets (blank = translated default)"
+    btcpay_tickets_intro: "Intro on /tickets (blank = translated default)"
+    btcpay_billing_title: "Heading on /billing (blank = translated default)"
+    btcpay_billing_intro: "Intro on /billing (blank = translated default)"
+    btcpay_nav_label: "Navigation link text (blank = translated default)"
     btcpay_reconcile_interval_hours: "Reconciliation job interval (hours)"
     btcpay_redirect_after_checkout: "Redirect path after BTCPay checkout"
 

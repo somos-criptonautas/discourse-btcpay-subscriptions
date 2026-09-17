@@ -1,3 +1,4 @@
 export default function () {
-  this.route("btcpaySubscribe", { path: "/subscribe" });
+  this.route("btcpayTickets", { path: "/tickets" });
+  this.route("btcpayBilling", { path: "/billing" });
 }

@@ -23,19 +23,20 @@ discourse-btcpay-subscriptions/
 │   ├── stylesheets/btcpay.scss
 │   └── javascripts/discourse/
 │       ├── admin-btcpay-route-map.js          # adminPlugins.btcpay → /admin/plugins/btcpay
-│       ├── btcpay-user-route-map.js           # user.billing → /u/:username/billing (/my/billing)
-│       ├── initializers/btcpay-subscriptions.js
+││       ├── initializers/btcpay-subscriptions.js
 │       ├── components/
 │       │   ├── btcpay-admin-dashboard.gjs
 │       │   ├── btcpay-checkout.gjs             # Plan picker + BTCPay modal
+│       │   ├── btcpay-page-header.gjs          # Overridable title/intro
 │       │   └── btcpay-subscription-status.gjs
-│       ├── btcpay-route-map.js                 # btcpaySubscribe → /subscribe
+│       ├── btcpay-route-map.js                 # /tickets and /billing
+│       ├── lib/btcpay-text.js                  # setting override → i18n fallback
 │       ├── connectors/
 │       │   └── user-main-nav/btcpay-billing-link.gjs
 │       └── templates/
-│           ├── admin-plugins-btcpay.gjs
-│           ├── btcpay-subscribe.gjs
-│           └── user/billing.gjs
+│           ├── admin-plugins/btcpay.gjs
+│           ├── btcpay-tickets.gjs
+│           ├── btcpay-billing.gjs
 │
 ├── spec/
 │   ├── requests/{webhook,checkout}_spec.rb
@@ -60,7 +61,7 @@ btcpay_payments:{user_id}   → JSON [ { invoice_id, amount, currency, method, s
 ## Request Flow
 
 ```
-User clicks "Pay with crypto" on /subscribe
+User clicks "Pay with crypto" on /tickets
     → POST /btcpay/checkout (sends discourse_user_id in metadata)
     → Plugin POSTs /api/v1/plan-checkout (storeId + offeringId + planId)
     → Returns invoice id + modal url → BTCPay modal opens in place
