@@ -91,7 +91,7 @@ function BtcpaySection() {
             <path d="M23.638 14.904c-1.602 6.43-8.113 10.34-14.542 8.736C2.67 22.05-1.244 15.525.362 9.105 1.962 2.67 8.475-1.243 14.9.358c6.43 1.605 10.342 8.115 8.738 14.546zm-6.35-4.613c.24-1.59-.974-2.45-2.634-3.02l.54-2.153-1.315-.33-.524 2.084c-.346-.086-.7-.167-1.053-.254l.529-2.09L11.512 5l-.539 2.16c-.285-.065-.565-.13-.837-.195l.001-.009-1.815-.454-.35 1.407s.975.224.955.238c.535.136.63.49.614.773l-.614 2.456c.037.009.085.023.14.043l-.14-.036-.86 3.44c-.064.16-.228.4-.6.31.015.02-.956-.239-.956-.239L4.83 16.24l1.713.427c.318.08.63.163.937.24l-.544 2.19 1.313.328.54-2.17c.36.1.708.19 1.05.273l-.538 2.156 1.316.33.545-2.19c2.24.424 3.926.253 4.635-1.774.572-1.634-.028-2.58-1.21-3.196.86-.198 1.508-.766 1.681-1.934zm-3.01 4.22c-.404 1.64-3.157.75-4.05.53l.72-2.9c.896.224 3.757.67 3.33 2.37zm.41-4.24c-.37 1.49-2.662.734-3.405.548l.654-2.63c.744.186 3.137.534 2.75 2.082z"/>
           </svg>
         </div>
-        <h3 style={styles.sectionTitle}>Pay with Bitcoin</h3>
+        <h3 style={styles.sectionTitle}>Pay with crypto</h3>
         <span style={{ ...styles.poweredBy, color: "#f7931a" }}>BTCPay Server</span>
       </div>
 
@@ -143,7 +143,7 @@ function BtcpaySection() {
                 Creating checkout...
               </span>
             ) : (
-              "Pay with Bitcoin"
+              "Pay with crypto"
             )}
           </button>
           <p style={styles.hint}>
@@ -223,7 +223,7 @@ export default function App() {
   return (
     <div style={styles.page}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.bunny.net/css?family=source-sans-3:400,500,600,700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>

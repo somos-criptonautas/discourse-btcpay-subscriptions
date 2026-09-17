@@ -21,7 +21,7 @@ plugins:
     textarea: true
     description: 'One JSON array, e.g. [{"plan_id":"xxx","group_name":"premium","label":"Premium Monthly"}]'
   btcpay_button_label:
-    default: "Pay with Bitcoin"
+    default: "Pay with crypto"
     client: true
     description: "Label for the BTCPay payment button"
   btcpay_reconcile_interval_hours:

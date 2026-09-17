@@ -9,7 +9,7 @@ BTCPay Server subscription integration for Discourse. Adds Bitcoin/Monero paymen
 ## Architecture
 
 ```
-User clicks "Pay with Bitcoin" on Discourse
+User clicks "Pay with crypto" on Discourse
     → Discourse creates checkout via BTCPay Greenfield API
     → User redirected to BTCPay checkout page
     → User pays → BTCPay settles invoice
@@ -79,7 +79,7 @@ Go to **Admin → Settings** and search for `btcpay`:
 | `btcpay_store_id` | Your BTCPay Store ID |
 | `btcpay_webhook_secret` | The secret from step 7 above |
 | `btcpay_plan_mappings` | See below |
-| `btcpay_button_label` | `Pay with Bitcoin` |
+| `btcpay_button_label` | `Pay with crypto` |
 
 **Plan mappings** — one JSON array, all plans in it:
 
@@ -143,7 +143,7 @@ For same-server setups where BTCPay calls localhost, you may configure the webho
 ### User Flow
 
 1. User visits Discourse subscriptions page
-2. Sees Stripe options (existing) + "Pay with Bitcoin" section (this plugin)
+2. Sees Stripe options (existing) + "Pay with crypto" section (this plugin)
 3. Selects a plan, clicks the button
 4. Redirected to BTCPay checkout → pays with BTC/XMR/Lightning
 5. Redirected back to Discourse → sees subscription active at `/my/billing` (also linked from the user profile nav)

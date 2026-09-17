@@ -12,20 +12,20 @@ en:
         disputed: "Disputed"
 
       checkout:
-        default_label: "Pay with Bitcoin"
+        default_label: "Pay with crypto"
         processing: "Processing…"
-        no_plans: "No Bitcoin payment plans available."
+        no_plans: "No crypto payment plans available."
         failed: "Failed to create checkout. Please try again."
 
       billing:
         nav_label: "Billing"
-        title: "Bitcoin Subscription"
+        title: "Crypto Subscription"
         plan: "Plan"
         status: "Status"
         period_end: "Current period ends"
         manage: "Manage on BTCPay"
         history: "Payment History"
-        none: "No active Bitcoin subscription."
+        none: "No active crypto subscription."
         col_date: "Date"
         col_amount: "Amount"
         col_method: "Method"

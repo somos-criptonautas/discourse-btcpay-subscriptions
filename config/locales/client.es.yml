@@ -12,20 +12,20 @@ es:
         disputed: "En disputa"
 
       checkout:
-        default_label: "Pagar con Bitcoin"
+        default_label: "Pagar en cripto"
         processing: "Procesando…"
-        no_plans: "No hay planes de pago con Bitcoin disponibles."
+        no_plans: "No hay planes de pago en cripto disponibles."
         failed: "No se pudo crear el pago. Inténtalo de nuevo."
 
       billing:
         nav_label: "Facturación"
-        title: "Suscripción en Bitcoin"
+        title: "Suscripción en cripto"
         plan: "Plan"
         status: "Estado"
         period_end: "El periodo actual termina"
         manage: "Gestionar en BTCPay"
         history: "Historial de pagos"
-        none: "No tienes ninguna suscripción activa en Bitcoin."
+        none: "No tienes ninguna suscripción activa en cripto."
         col_date: "Fecha"
         col_amount: "Importe"
         col_method: "Método"

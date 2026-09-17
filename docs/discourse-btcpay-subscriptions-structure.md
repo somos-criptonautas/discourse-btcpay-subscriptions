@@ -58,7 +58,7 @@ btcpay_plans                → JSON [ { btcpay_plan_id, name, group_name, price
 ## Request Flow
 
 ```
-User clicks "Pay with Bitcoin"
+User clicks "Pay with crypto"
     → POST /btcpay/checkout (sends discourse_username in metadata)
     → Plugin calls BTCPay Greenfield API → creates plan checkout
     → Returns checkout URL → user redirected to BTCPay

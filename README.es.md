@@ -9,7 +9,7 @@ Integración de suscripciones de BTCPay Server para Discourse. Añade el pago co
 ## Arquitectura
 
 ```
-El usuario pulsa "Pagar con Bitcoin" en Discourse
+El usuario pulsa "Pagar en cripto" en Discourse
     → Discourse crea el checkout con la API Greenfield de BTCPay
     → El usuario es redirigido a la página de pago de BTCPay
     → Paga → BTCPay liquida la factura
@@ -79,7 +79,7 @@ Ve a **Admin → Ajustes** y busca `btcpay`:
 | `btcpay_store_id` | El ID de tu tienda de BTCPay |
 | `btcpay_webhook_secret` | El secreto del paso 7 |
 | `btcpay_plan_mappings` | Ver abajo |
-| `btcpay_button_label` | `Pagar con Bitcoin` |
+| `btcpay_button_label` | `Pagar en cripto` |
 | `btcpay_reconcile_interval_hours` | `4` |
 
 **Correspondencia de planes** — un único array JSON con todos los planes:
@@ -126,7 +126,7 @@ Usa siempre la URL pública (`https://tudiscourse.com/btcpay/webhook`) como dest
 ### Flujo del usuario
 
 1. Entra en la página de suscripciones de Discourse
-2. Ve las opciones de Stripe (existentes) + la sección "Pagar con Bitcoin"
+2. Ve las opciones de Stripe (existentes) + la sección "Pagar en cripto"
 3. Elige un plan y pulsa el botón
 4. Va a BTCPay → paga con BTC/XMR/Lightning
 5. Vuelve a Discourse → ve su suscripción activa en `/my/billing` (también enlazada desde su perfil)
