@@ -44,6 +44,8 @@ module DiscourseBtcpay
         handle_invoice_processing(event)
       when "InvoiceInvalid"
         handle_invoice_invalid(event)
+      when "InvoiceExpired"
+        handle_invoice_expired(event)
       when "SubscriptionExpired", "SubscriptionCancelled"
         handle_subscription_ended(event)
       else
@@ -132,7 +134,8 @@ module DiscourseBtcpay
         invoice = api.get_invoice(invoice_id)
         amount = invoice["amount"]
         currency = invoice["currency"]
-        payment_method = invoice["paymentMethod"] || "BTC"
+        # Whatever BTCPay actually took — BTC, XMR, LTC, Lightning, …
+        payment_method = api.settled_payment_method(invoice_id) || invoice["paymentMethod"]
       rescue BtcpayApi::ApiError => e
         Rails.logger.warn("DiscourseBtcpay: Could not fetch invoice details: #{e.message}")
       end
@@ -182,6 +185,19 @@ module DiscourseBtcpay
 
       manager = BtcpaySubscriptionManager.new
       manager.mark_pending(user_id: user_id, subscription_id: subscription_id, plan_id: plan_id)
+    end
+
+    # An invoice that was never paid in time. Only a pending record is
+    # affected — a settled subscription keeps its access.
+    def handle_invoice_expired(event)
+      user_id = resolve_user_id(event)
+      return unless user_id
+
+      sub = DiscourseBtcpay.get_subscription(user_id)
+      return unless sub && sub["status"] == "pending"
+
+      Rails.logger.info("DiscourseBtcpay: Invoice expired for user #{user_id}, clearing pending subscription")
+      BtcpaySubscriptionManager.new.deactivate(user_id: user_id, reason: "expired")
     end
 
     def handle_invoice_invalid(event)

@@ -93,7 +93,9 @@ after_initialize do
     end
 
     def self.notify_admin(subject, body)
-      admin = User.find_by(admin: true)
+      # id > 0 keeps the alert away from the Discourse system user, whose
+      # inbox no human reads.
+      admin = User.where(admin: true).where("id > 0").order(:id).first
       return unless admin
 
       SystemMessage.create_from_system_user(

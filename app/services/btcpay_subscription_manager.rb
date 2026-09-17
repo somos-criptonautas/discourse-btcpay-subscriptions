@@ -127,16 +127,24 @@ module DiscourseBtcpay
     # Mark as disputed (refund scenario) — keep access, notify admin
     def mark_disputed(user_id:, invoice_id:)
       sub = DiscourseBtcpay.get_subscription(user_id)
-      return unless sub
 
-      sub["status"] = "disputed"
-      sub["updated_at"] = Time.now.iso8601
-      DiscourseBtcpay.store_subscription(user_id, sub)
+      if sub
+        sub["status"] = "disputed"
+        sub["updated_at"] = Time.now.iso8601
+        DiscourseBtcpay.store_subscription(user_id, sub)
+      end
 
       user = User.find_by(id: user_id)
+      detail =
+        if sub
+          "Group access retained pending admin review."
+        else
+          "No local subscription record exists for this user — nothing was granted."
+        end
+
       DiscourseBtcpay.notify_admin("Subscription Dispute",
         "Invoice #{invoice_id} was invalidated/refunded for user '#{user&.username || user_id}'. " \
-        "Group access retained pending admin review.")
+        "#{detail}")
     end
 
     # Record a payment in history

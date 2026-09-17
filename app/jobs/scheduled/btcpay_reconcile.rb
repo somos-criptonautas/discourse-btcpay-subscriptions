@@ -7,6 +7,7 @@ module Jobs
     every 1.hour
 
     LAST_RUN_KEY = "reconcile_last_run_at"
+    PENDING_TIMEOUT = 24.hours
 
     def execute(args = {})
       return unless SiteSetting.btcpay_enabled
@@ -22,11 +23,15 @@ module Jobs
       begin
         remote_subs = api.list_subscriptions
       rescue DiscourseBtcpay::BtcpayApi::ApiError => e
+        # No stamp: a BTCPay outage must not burn this interval's window,
+        # so the next hourly tick retries instead of waiting N hours.
         Rails.logger.error("DiscourseBtcpay: Reconciliation failed to fetch subscriptions: #{e.message}")
         return
       end
 
       return unless remote_subs.is_a?(Array)
+
+      mark_ran
 
       remote_by_id = remote_subs.index_by { |s| s["id"] }
       local_rows = PluginStoreRow.where(
@@ -49,6 +54,10 @@ module Jobs
           # Subscription no longer exists in BTCPay
           if local_data["status"] == "active"
             Rails.logger.warn("DiscourseBtcpay: Subscription #{sub_id} not found remotely, deactivating user #{user_id}")
+            manager.deactivate(user_id: user_id, reason: "expired")
+            fixed += 1
+          elsif local_data["status"] == "pending" && stale_pending?(local_data)
+            Rails.logger.warn("DiscourseBtcpay: Pending subscription #{sub_id} never settled, expiring user #{user_id}")
             manager.deactivate(user_id: user_id, reason: "expired")
             fixed += 1
           end
@@ -118,17 +127,30 @@ module Jobs
     private
 
     def due?(force: false)
+      return true if force
+
       interval = SiteSetting.btcpay_reconcile_interval_hours.to_i.clamp(1, 168)
       last = PluginStore.get(DiscourseBtcpay::PLUGIN_NAME, LAST_RUN_KEY)
       last_at = Time.parse(last) rescue nil
 
-      if !force && last_at && last_at > interval.hours.ago
+      if last_at && last_at > interval.hours.ago
         Rails.logger.debug("DiscourseBtcpay: Reconciliation skipped, last run #{last_at}")
         return false
       end
 
-      PluginStore.set(DiscourseBtcpay::PLUGIN_NAME, LAST_RUN_KEY, Time.now.iso8601)
       true
+    end
+
+    def mark_ran
+      PluginStore.set(DiscourseBtcpay::PLUGIN_NAME, LAST_RUN_KEY, Time.now.iso8601)
+    end
+
+    # A pending record means an invoice was seen but never settled. BTCPay
+    # invoices expire in minutes; a day is a generous grace period before we
+    # treat the payment as abandoned.
+    def stale_pending?(local_data)
+      updated = Time.parse(local_data["updated_at"].to_s) rescue nil
+      updated.nil? || updated < PENDING_TIMEOUT.ago
     end
   end
 end

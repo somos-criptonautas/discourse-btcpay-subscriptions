@@ -97,6 +97,9 @@ export default class BtcpayAdminDashboard extends Component {
           {{#if this.server.version}}
             <span class="btcpay-server-version">v{{this.server.version}}</span>
           {{/if}}
+          {{#if this.server.cryptos}}
+            <span class="btcpay-cryptos">{{this.server.cryptos}}</span>
+          {{/if}}
           {{#if this.server.chain_height}}
             <span class="btcpay-chain-height">
               {{i18n

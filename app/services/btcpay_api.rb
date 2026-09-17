@@ -57,6 +57,20 @@ module DiscourseBtcpay
       get("/api/v1/stores/#{@store_id}/invoices/#{invoice_id}/payment-methods")
     end
 
+    # Which crypto actually paid an invoice ("BTC", "XMR", "BTC-LightningNetwork", …).
+    # nil when nothing is paid yet or BTCPay does not say.
+    def settled_payment_method(invoice_id)
+      methods = get_invoice_payment_methods(invoice_id)
+      return nil unless methods.is_a?(Array)
+
+      paid =
+        methods.find do |m|
+          m["paymentMethodPaid"].to_f > 0 || m["totalPaid"].to_f > 0 || m["payments"].present?
+        end
+
+      paid && (paid["paymentMethodId"] || paid["paymentMethod"] || paid["cryptoCode"])
+    end
+
     private
 
     def get(path, params = {})

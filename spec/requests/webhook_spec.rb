@@ -81,6 +81,43 @@ describe DiscourseBtcpay::BtcpayWebhookController do
     expect(DiscourseBtcpay.get_payments(user.id).size).to eq(1)
   end
 
+  it "clears a pending subscription when the invoice expires" do
+    DiscourseBtcpay.store_subscription(
+      user.id,
+      {
+        "subscription_id" => "SUB1",
+        "plan_id" => "plan-1",
+        "group_name" => "premium",
+        "status" => "pending",
+        "updated_at" => Time.now.iso8601
+      }
+    )
+    body = { type: "InvoiceExpired", invoiceId: "INV2", metadata: { discourse_user_id: user.id.to_s } }.to_json
+
+    post_webhook(body, headers: { "BTCPay-Sig" => sign(body) })
+
+    expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("expired")
+  end
+
+  it "leaves an active subscription alone when an unrelated invoice expires" do
+    post_webhook(payload, headers: { "BTCPay-Sig" => sign(payload) })
+    body = { type: "InvoiceExpired", invoiceId: "INV2", metadata: { discourse_user_id: user.id.to_s } }.to_json
+
+    post_webhook(body, headers: { "BTCPay-Sig" => sign(body) })
+
+    expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("active")
+    expect(group.reload.users).to include(user)
+  end
+
+  it "notifies an admin about a dispute even with no local record" do
+    Fabricate(:admin)
+    body = { type: "InvoiceInvalid", invoiceId: "INV3", metadata: { discourse_user_id: user.id.to_s } }.to_json
+
+    expect { post_webhook(body, headers: { "BTCPay-Sig" => sign(body) }) }.to change {
+      Topic.where(archetype: Archetype.private_message).count
+    }.by(1)
+  end
+
   it "rate limits floods from one IP" do
     RateLimiter.enable
     RateLimiter.new(nil, "btcpay-webhook-127.0.0.1", 60, 1.minute).clear!

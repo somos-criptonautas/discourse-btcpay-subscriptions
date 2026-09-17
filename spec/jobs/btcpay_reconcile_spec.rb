@@ -35,6 +35,54 @@ describe Jobs::BtcpayReconcile do
     expect(last_run).not_to eq(first_run)
   end
 
+  it "does not consume the interval when BTCPay is unreachable" do
+    stub_request(:get, %r{/api/v1/stores/store/subscriptions}).to_timeout
+
+    described_class.new.execute({})
+
+    expect(last_run).to be_nil
+  end
+
+  it "expires a pending subscription that never settled" do
+    user = Fabricate(:user)
+    group = Fabricate(:group, name: "premium")
+    group.add(user)
+    DiscourseBtcpay.store_subscription(
+      user.id,
+      {
+        "subscription_id" => "SUB1",
+        "plan_id" => "plan-1",
+        "group_name" => "premium",
+        "status" => "pending",
+        "updated_at" => 2.days.ago.iso8601
+      }
+    )
+
+    described_class.new.execute({})
+
+    expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("expired")
+    expect(group.reload.users).not_to include(user)
+  end
+
+  it "leaves a freshly pending subscription alone" do
+    user = Fabricate(:user)
+    Fabricate(:group, name: "premium")
+    DiscourseBtcpay.store_subscription(
+      user.id,
+      {
+        "subscription_id" => "SUB1",
+        "plan_id" => "plan-1",
+        "group_name" => "premium",
+        "status" => "pending",
+        "updated_at" => 1.hour.ago.iso8601
+      }
+    )
+
+    described_class.new.execute({})
+
+    expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("pending")
+  end
+
   it "runs immediately when forced from the admin sync button" do
     described_class.new.execute({})
     first_run = last_run

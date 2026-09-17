@@ -18,15 +18,19 @@ module DiscourseBtcpay
             nil
           end
 
-        btc = info && Array(info["syncStatus"]).find { |s| s["cryptoCode"] == "BTC" }
+        sync = info ? Array(info["syncStatus"]) : []
+        # BTC is the network yardstick when present; otherwise take whatever
+        # chain BTCPay reports first.
+        chain = sync.find { |s| s["cryptoCode"] == "BTC" } || sync.first
 
         render json: {
           configured: true,
           server_url: SiteSetting.btcpay_server_url,
           version: info && info["version"],
           fully_synched: info && info["fullySynched"],
-          chain_height: btc && btc["chainHeight"],
-          network: network_from_height(btc && btc["chainHeight"])
+          chain_height: chain && chain["chainHeight"],
+          network: network_from_height(chain && chain["chainHeight"]),
+          cryptos: sync.filter_map { |s| s["cryptoCode"] }.uniq
         }
       end
 
