@@ -224,6 +224,10 @@ hmac_failures               → { count, last_at }
 
 **User not added to group:** Check Discourse `/logs` for `DiscourseBtcpay` entries. Verify the plan mapping JSON is valid and the group exists.
 
+**Admin page 404s:** the config page lives at **Admin → Plugins → BTCPay Subscriptions** (`/admin/plugins/discourse-btcpay-subscriptions/btcpay`), not `/admin/plugins/btcpay` — that prefix serves the plugin's JSON endpoints only. A stale bookmark to the old path will 404.
+
+**Admin page says "not fully configured":** it now lists the settings that are still blank. `btcpay_offering_id` is the one most often missed — it was added after the first release. If every setting is filled and it still complains, the page shows the BTCPay error instead: check `btcpay_server_url` and that the API key carries `canviewofferings`.
+
 **Manual sync:** Admin → Plugins → BTCPay → "Sync with BTCPay" button (bypasses the interval).
 
 **Wrong network:** the admin page shows the network BTCPay reports (mainnet / testnet) next to the server URL and chain height. It is derived from the chain tip; "unknown" means BTCPay returned no sync status.

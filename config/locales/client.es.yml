@@ -68,6 +68,8 @@ es:
         sync: "Sincronizar con BTCPay"
         syncing: "Sincronizando…"
         empty: "No se encontraron suscripciones."
+        missing_settings: "Ajustes vacíos:"
+        unreachable: "BTCPay no respondió — revisa la URL y la clave API."
         not_configured: "BTCPay no está configurado por completo."
         not_synced: "El nodo no está sincronizado del todo"
         network_unknown: "red desconocida"

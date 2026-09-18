@@ -11,8 +11,10 @@ enabled_site_setting :btcpay_enabled
 
 register_asset "stylesheets/btcpay.scss"
 
-# Without this the plugin list only offers the generic settings page.
-add_admin_route "btcpay.admin.title", "btcpay"
+# use_new_show_route puts our page under adminPlugins.show, which is the only
+# admin plugin route Discourse still registers — a bare adminPlugins.btcpay is
+# swallowed by the show route's /:plugin_id segment and 404s.
+add_admin_route "btcpay.admin.title", "btcpay", use_new_show_route: true
 
 after_initialize do
   module ::DiscourseBtcpay
@@ -178,8 +180,10 @@ after_initialize do
   Discourse::Application.routes.append do
     mount DiscourseBtcpay::Engine, at: "/btcpay"
 
-    scope "/admin/plugins/btcpay", constraints: StaffConstraint.new do
-      get "/" => "discourse_btcpay/admin/btcpay_admin#index"
+    # JSON only. The admin page itself is an Ember route under
+    # adminPlugins.show, so no HTML route may live at this prefix.
+    scope "/admin/plugins/btcpay", constraints: StaffConstraint.new, defaults: { format: :json } do
+      get "/status" => "discourse_btcpay/admin/btcpay_admin#index"
       get "/subscriptions" => "discourse_btcpay/admin/btcpay_admin#subscriptions"
       post "/sync" => "discourse_btcpay/admin/btcpay_admin#sync"
     end

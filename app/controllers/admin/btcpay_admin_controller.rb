@@ -5,10 +5,24 @@ module DiscourseBtcpay
     class BtcpayAdminController < ::Admin::AdminController
       requires_plugin DiscourseBtcpay::PLUGIN_NAME
 
-      # GET /admin/plugins/btcpay
+      REQUIRED_SETTINGS = %w[
+        btcpay_server_url
+        btcpay_api_key
+        btcpay_store_id
+        btcpay_offering_id
+      ].freeze
+
+      # GET /admin/plugins/btcpay/status
       def index
+        missing = REQUIRED_SETTINGS.select { |name| SiteSetting.get(name).blank? }
+
+        if missing.any?
+          # Naming the blank settings beats a bare "not configured" — the
+          # offering id in particular is easy to miss.
+          return render json: { configured: false, missing_settings: missing }
+        end
+
         api = BtcpayApi.new
-        return render json: { configured: false } unless api.configured?
 
         info =
           begin
@@ -25,6 +39,8 @@ module DiscourseBtcpay
 
         render json: {
           configured: true,
+          missing_settings: [],
+          reachable: !info.nil?,
           server_url: SiteSetting.btcpay_server_url,
           offering_id: SiteSetting.btcpay_offering_id,
           version: info && info["version"],

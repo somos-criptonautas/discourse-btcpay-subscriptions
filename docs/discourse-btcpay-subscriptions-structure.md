@@ -9,7 +9,7 @@ discourse-btcpay-subscriptions/
 │   ├── controllers/
 │   │   ├── btcpay_webhook_controller.rb       # POST /btcpay/webhook — rate limit + content-type + HMAC
 │   │   ├── btcpay_checkout_controller.rb      # POST /btcpay/checkout, GET /btcpay/{subscription,plans}
-│   │   └── admin/btcpay_admin_controller.rb   # GET /admin/plugins/btcpay — network info + subscriptions
+│   │   └── admin/btcpay_admin_controller.rb   # JSON: /admin/plugins/btcpay/{status,subscriptions,sync}
 │   ├── jobs/scheduled/btcpay_reconcile.rb     # Hourly tick, gated by btcpay_reconcile_interval_hours
 │   └── services/
 │       ├── btcpay_api.rb                      # Greenfield client (offerings, plan-checkout, portal)
@@ -22,7 +22,7 @@ discourse-btcpay-subscriptions/
 ├── assets/
 │   ├── stylesheets/btcpay.scss
 │   └── javascripts/discourse/
-│       ├── admin-btcpay-route-map.js          # adminPlugins.btcpay → /admin/plugins/btcpay
+│       ├── admin-btcpay-route-map.js          # (in assets/javascripts/) adminPlugins.show.btcpay
 ││       ├── initializers/btcpay-subscriptions.js
 │       ├── components/
 │       │   ├── btcpay-admin-dashboard.gjs
@@ -34,7 +34,7 @@ discourse-btcpay-subscriptions/
 │       ├── connectors/
 │       │   └── user-main-nav/btcpay-billing-link.gjs
 │       └── templates/
-│           ├── admin-plugins/btcpay.gjs
+│           ├── admin-plugins/show/btcpay.gjs
 │           ├── btcpay-tickets.gjs
 │           ├── btcpay-billing.gjs
 │

@@ -4,7 +4,7 @@ import { concat, fn, get } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { ajax } from "discourse/lib/ajax";
-import { popupAjaxError } from "discourse/lib/ajax-error";
+import { extractError, popupAjaxError } from "discourse/lib/ajax-error";
 import { eq } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
@@ -14,6 +14,7 @@ export default class BtcpayAdminDashboard extends Component {
   @tracked subscriptions = [];
   @tracked stats = {};
   @tracked server = {};
+  @tracked serverError = null;
   @tracked loading = true;
   @tracked syncing = false;
   @tracked filter = "all";
@@ -28,9 +29,10 @@ export default class BtcpayAdminDashboard extends Component {
 
   async loadServerInfo() {
     try {
-      this.server = await ajax("/admin/plugins/btcpay");
+      this.server = await ajax("/admin/plugins/btcpay/status");
     } catch (e) {
-      popupAjaxError(e);
+      // A failed status call is not the same as "not configured" — say so.
+      this.serverError = extractError(e);
     }
   }
 
@@ -54,6 +56,10 @@ export default class BtcpayAdminDashboard extends Component {
     } finally {
       this.loading = false;
     }
+  }
+
+  get missingSettings() {
+    return (this.server.missing_settings || []).join(", ");
   }
 
   get networkClass() {
@@ -108,14 +114,27 @@ export default class BtcpayAdminDashboard extends Component {
               }}
             </span>
           {{/if}}
+          {{#unless this.server.reachable}}
+            <span class="btcpay-not-synced">
+              {{i18n "btcpay.admin.unreachable"}}
+            </span>
+          {{/unless}}
           {{#unless this.server.fully_synched}}
             <span class="btcpay-not-synced">
               {{i18n "btcpay.admin.not_synced"}}
             </span>
           {{/unless}}
+        {{else if this.serverError}}
+          <span class="btcpay-not-configured">{{this.serverError}}</span>
         {{else}}
           <span class="btcpay-not-configured">
             {{i18n "btcpay.admin.not_configured"}}
+            {{#if this.server.missing_settings}}
+              <span class="btcpay-missing-settings">
+                {{i18n "btcpay.admin.missing_settings"}}
+                {{this.missingSettings}}
+              </span>
+            {{/if}}
           </span>
         {{/if}}
 
