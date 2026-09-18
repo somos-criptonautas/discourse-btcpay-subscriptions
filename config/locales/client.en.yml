@@ -65,6 +65,7 @@ en:
 
       admin:
         title: "BTCPay Subscriptions"
+        settings: "Settings"
         sync: "Sync with BTCPay"
         syncing: "Syncing…"
         empty: "No subscriptions found."

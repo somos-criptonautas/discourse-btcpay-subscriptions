@@ -5,8 +5,10 @@ import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { ajax } from "discourse/lib/ajax";
 import { extractError, popupAjaxError } from "discourse/lib/ajax-error";
+import getURL from "discourse/lib/get-url";
 import { eq } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
+import { PLUGIN_ID } from "../lib/plugin-id";
 
 const FILTERS = ["all", "active", "pending", "expired", "cancelled"];
 
@@ -56,6 +58,11 @@ export default class BtcpayAdminDashboard extends Component {
     } finally {
       this.loading = false;
     }
+  }
+
+  // Core's own plugin settings page (adminPlugins.show.settings)
+  get settingsUrl() {
+    return getURL(`/admin/plugins/${PLUGIN_ID}/settings`);
   }
 
   get missingSettings() {
@@ -132,11 +139,18 @@ export default class BtcpayAdminDashboard extends Component {
             {{#if this.server.missing_settings}}
               <span class="btcpay-missing-settings">
                 {{i18n "btcpay.admin.missing_settings"}}
-                {{this.missingSettings}}
+                <a href={{this.settingsUrl}}>{{this.missingSettings}}</a>
               </span>
             {{/if}}
           </span>
         {{/if}}
+
+        <a
+          href={{this.settingsUrl}}
+          class="btn btn-default btcpay-settings-btn"
+        >
+          {{i18n "btcpay.admin.settings"}}
+        </a>
 
         <button
           class="btn btn-default btcpay-sync-btn"

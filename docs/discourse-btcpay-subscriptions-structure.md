@@ -22,7 +22,7 @@ discourse-btcpay-subscriptions/
 ├── assets/
 │   ├── stylesheets/btcpay.scss
 │   └── javascripts/discourse/
-│       ├── admin-btcpay-route-map.js          # (in assets/javascripts/) adminPlugins.show.btcpay
+│       ├── admin-btcpay-route-map.js          # adminPlugins.discourse-btcpay-subscriptions
 ││       ├── initializers/btcpay-subscriptions.js
 │       ├── components/
 │       │   ├── btcpay-admin-dashboard.gjs
@@ -31,10 +31,11 @@ discourse-btcpay-subscriptions/
 │       │   └── btcpay-subscription-status.gjs
 │       ├── btcpay-route-map.js                 # /tickets and /billing
 │       ├── lib/btcpay-text.js                  # setting override → i18n fallback
+│       ├── lib/plugin-id.js                    # directory name, keys the admin URLs
 │       ├── connectors/
 │       │   └── user-main-nav/btcpay-billing-link.gjs
 │       └── templates/
-│           ├── admin-plugins/show/btcpay.gjs
+│           ├── admin-plugins/discourse-btcpay-subscriptions.gjs
 │           ├── btcpay-tickets.gjs
 │           ├── btcpay-billing.gjs
 │

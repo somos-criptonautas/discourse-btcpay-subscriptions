@@ -209,7 +209,7 @@ reconcile_last_run_at      → marca de tiempo ISO8601 de la última reconciliac
 
 **El usuario no entra al grupo:** mira `/logs` buscando `DiscourseBtcpay`. Verifica que el JSON de planes sea válido y que el grupo exista.
 
-**La página de admin da 404:** la página de configuración está en **Admin → Plugins → BTCPay Subscriptions** (`/admin/plugins/discourse-btcpay-subscriptions/btcpay`), no en `/admin/plugins/btcpay` — ese prefijo sirve solo los endpoints JSON del plugin. Un marcador antiguo a la ruta vieja dará 404.
+**La página de admin da 404:** la página de configuración está en **Admin → Plugins → BTCPay Subscriptions** (`/admin/plugins/discourse-btcpay-subscriptions`), no en `/admin/plugins/btcpay` — ese prefijo sirve solo los endpoints JSON del plugin. Un marcador antiguo a la ruta vieja dará 404.
 
 **La página de admin dice "no está configurado del todo":** ahora enumera los ajustes que siguen vacíos. `btcpay_offering_id` es el que más se olvida — se añadió después de la primera versión. Si están todos rellenos y sigue quejándose, la página muestra el error de BTCPay: revisa `btcpay_server_url` y que la clave API tenga `canviewofferings`.
 

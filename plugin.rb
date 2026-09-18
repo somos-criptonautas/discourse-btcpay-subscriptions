@@ -11,10 +11,9 @@ enabled_site_setting :btcpay_enabled
 
 register_asset "stylesheets/btcpay.scss"
 
-# use_new_show_route puts our page under adminPlugins.show, which is the only
-# admin plugin route Discourse still registers — a bare adminPlugins.btcpay is
-# swallowed by the show route's /:plugin_id segment and 404s.
-add_admin_route "btcpay.admin.title", "btcpay", use_new_show_route: true
+# The location is the plugin directory name, so the admin plugin list links
+# straight to our dashboard at /admin/plugins/discourse-btcpay-subscriptions.
+add_admin_route "btcpay.admin.title", "discourse-btcpay-subscriptions"
 
 after_initialize do
   module ::DiscourseBtcpay
