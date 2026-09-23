@@ -66,6 +66,8 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
     end
 
     it "404s on an unmapped plan" do
+      stub_offering
+
       post "/btcpay/checkout.json", params: { plan_id: "nope" }
 
       expect(response.status).to eq(404)

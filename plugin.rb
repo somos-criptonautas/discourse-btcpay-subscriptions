@@ -53,13 +53,16 @@ after_initialize do
     # The offering is the catalogue: plans are read from BTCPay, not typed in
     # twice. Cached per store+offering so a busy page does not hammer it.
     def self.remote_plans(refresh: false)
+      api = BtcpayApi.new
+      return [] unless api.configured?
+
       key = "btcpay_plans_#{SiteSetting.btcpay_store_id}_#{SiteSetting.btcpay_offering_id}"
       ::Discourse.cache.delete(key) if refresh
 
       plans =
         ::Discourse.cache.fetch(key, expires_in: PLANS_CACHE_TTL) do
           begin
-            BtcpayApi.new.plans
+            api.plans
           rescue BtcpayApi::ApiError => e
             Rails.logger.warn("DiscourseBtcpay: Could not fetch plans from BTCPay: #{e.message}")
             nil

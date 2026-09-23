@@ -145,6 +145,9 @@ module DiscourseBtcpay
       raise ApiError, "Invalid JSON response from BTCPay: #{e.message}"
     rescue Errno::ECONNREFUSED, SocketError => e
       raise ApiError, "Cannot connect to BTCPay Server at #{@base_url}: #{e.message}"
+    rescue URI::InvalidURIError, ArgumentError => e
+      # e.g. btcpay_server_url is blank or missing its scheme
+      raise ApiError, "Invalid BTCPay Server URL #{@base_url.inspect}: #{e.message}"
     end
   end
 end

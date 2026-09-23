@@ -23,7 +23,11 @@ describe DiscourseBtcpay::Admin::BtcpayAdminController do
   end
 
   context "as an admin" do
-    before { sign_in(admin) }
+    before do
+      sign_in(admin)
+      stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
+        .to_return(status: 200, body: { id: "off-1", plans: [] }.to_json)
+    end
 
     it "names the settings that are still blank" do
       SiteSetting.btcpay_offering_id = ""
