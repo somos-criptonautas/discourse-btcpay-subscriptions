@@ -184,7 +184,9 @@ export default class BtcpaySubscriptionStatus extends Component {
                       <span
                         class="btcpay-badge btcpay-status-{{payment.status}}"
                       >
-                        {{i18n (concat "btcpay.payment_status." payment.status)}}
+                        {{i18n
+                          (concat "btcpay.payment_status." payment.status)
+                        }}
                       </span>
                     </td>
                   </tr>
