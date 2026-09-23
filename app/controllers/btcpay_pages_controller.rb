@@ -7,8 +7,19 @@ module DiscourseBtcpay
   class BtcpayPagesController < ::ApplicationController
     requires_plugin DiscourseBtcpay::PLUGIN_NAME
 
+    # check_xhr turns a browser GET into the app shell before any normal
+    # before_action runs, so the disabled check has to come first or a disabled
+    # plugin would still serve the page.
+    prepend_before_action :ensure_btcpay_enabled
+
     def index
       render json: success_json
+    end
+
+    private
+
+    def ensure_btcpay_enabled
+      raise Discourse::NotFound unless SiteSetting.btcpay_enabled
     end
   end
 end
