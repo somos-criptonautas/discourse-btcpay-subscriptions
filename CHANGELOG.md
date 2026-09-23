@@ -22,6 +22,13 @@ All notable changes to this plugin. Versions follow the `version:` field in
 - Minimum Discourse version corrected to 3.4 — the shipped frontend cannot run
   on the previously declared 2.7.
 
+### Tests
+- Frontend QUnit suite (`test/javascripts/`): tickets page plan list and
+  upgrade/downgrade states, billing page trial/grace/history, live payment
+  progress, admin dashboard plans table and missing-settings warning, and unit
+  coverage for the setting-override text helper. CI now runs a `frontend` job
+  in addition to the backend one.
+
 ### Removed
 - `docs/btcpay-checkout-preview.jsx`, a React/Stripe prototype that no longer
   matched the plugin.

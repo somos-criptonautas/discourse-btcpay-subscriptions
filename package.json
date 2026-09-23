@@ -9,12 +9,12 @@
   },
   "scripts": {
     "lint": "pnpm lint:js && pnpm lint:hbs && pnpm lint:css && pnpm lint:prettier",
-    "lint:js": "eslint assets/javascripts spec --no-error-on-unmatched-pattern",
-    "lint:js:fix": "eslint assets/javascripts spec --fix --no-error-on-unmatched-pattern",
+    "lint:js": "eslint assets/javascripts test/javascripts spec --no-error-on-unmatched-pattern",
+    "lint:js:fix": "eslint assets/javascripts test/javascripts spec --fix --no-error-on-unmatched-pattern",
     "lint:hbs": "ember-template-lint 'assets/javascripts/**/*.gjs' --no-error-on-unmatched-pattern",
     "lint:css": "stylelint 'assets/stylesheets/**/*.scss' --allow-empty-input",
-    "lint:prettier": "prettier --check 'assets/**/*.{scss,js,gjs,hbs}' --no-error-on-unmatched-pattern",
-    "lint:prettier:fix": "prettier -w 'assets/**/*.{scss,js,gjs,hbs}' --no-error-on-unmatched-pattern"
+    "lint:prettier": "prettier --check 'assets/**/*.{scss,js,gjs,hbs}' 'test/**/*.{js,gjs}' --no-error-on-unmatched-pattern",
+    "lint:prettier:fix": "prettier -w 'assets/**/*.{scss,js,gjs,hbs}' 'test/**/*.{js,gjs}' --no-error-on-unmatched-pattern"
   },
   "engines": {
     "node": ">= 22",

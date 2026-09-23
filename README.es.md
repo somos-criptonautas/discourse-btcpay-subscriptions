@@ -341,7 +341,12 @@ En local:
 ```bash
 cd /var/discourse && ./launcher enter app
 bundle exec rspec plugins/discourse-btcpay-subscriptions/spec
+
+# Frontend (QUnit, necesita la app Ember construida)
+bin/rake plugin:qunit['discourse-btcpay-subscriptions']
 ```
+
+CI ejecuta ambos, contra `latest` y contra `stable`.
 
 Linting del frontend (requiere Node 22+ y pnpm):
 
