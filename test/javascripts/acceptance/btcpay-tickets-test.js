@@ -11,6 +11,7 @@ const PLANS = {
       price: "10",
       currency: "USD",
       interval: "Monthly",
+      description_html: "<p><strong>Everything</strong> in the forum</p>",
     },
     {
       plan_id: "plan-2",
@@ -55,6 +56,12 @@ acceptance("BTCPay | Tickets page", function (needs) {
     await visit("/tickets");
 
     assert.dom(".btcpay-checkout-btn").exists();
+  });
+
+  test("renders markdown in a plan description", async function (assert) {
+    await visit("/tickets");
+
+    assert.dom(".btcpay-plan__description strong").hasText("Everything");
   });
 
   test("says nothing about a subscription the user does not have", async function (assert) {

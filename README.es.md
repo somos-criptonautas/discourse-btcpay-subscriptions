@@ -247,6 +247,8 @@ Los registros de un **usuario eliminado** se borran automáticamente cuando Disc
 
 **La página de admin dice "no está configurado del todo":** ahora enumera los ajustes que siguen vacíos. `btcpay_offering_id` es el que más se olvida — se añadió después de la primera versión. Si están todos rellenos y sigue quejándose, la página muestra el error de BTCPay: revisa `btcpay_server_url` y que la clave API tenga `canviewofferings`.
 
+**El checkout sigue cayendo en localhost tras pulsar Subscribe:** corregido en el plugin — ahora Discourse continúa el checkout por su cuenta (`POST /api/v1/plan-checkout/{id}`) y lleva al pagador directo a la factura, sin pasar por la página Subscribe de BTCPay ni por su redirección. Si aun así ocurre, la URL de la factura se está construyendo mal: revisa **BTCPay → Server Settings → Server URL**.
+
 **El checkout me lleva a localhost:** BTCPay construyó la URL con el host que cree tener. El plugin la reescribe hacia `btcpay_server_url` y deja un aviso en los logs, así que el pago funciona igualmente — pero corrige la causa en BTCPay:
 
 - **BTCPay → Server Settings → Server URL** debe ser la URL pública HTTPS, no `localhost`.

@@ -264,6 +264,8 @@ Records belonging to a **deleted user** are removed automatically when Discourse
 
 **Admin page says "not fully configured":** it now lists the settings that are still blank. `btcpay_offering_id` is the one most often missed — it was added after the first release. If every setting is filled and it still complains, the page shows the BTCPay error instead: check `btcpay_server_url` and that the API key carries `canviewofferings`.
 
+**Checkout still lands on localhost after clicking Subscribe:** fixed in the plugin — Discourse now proceeds the checkout itself (`POST /api/v1/plan-checkout/{id}`) and sends the payer straight to the invoice, so BTCPay's own Subscribe page and its redirect are never involved. If you still see it, the invoice URL itself is being built wrong: check **BTCPay → Server Settings → Server URL**.
+
 **Checkout sends me to localhost:** BTCPay built the checkout URL from the host it believes it runs on. The plugin rewrites that URL to `btcpay_server_url` and logs a warning, so checkout still works — but fix the root cause in BTCPay:
 
 - **BTCPay → Server Settings → Server URL** must be the public HTTPS URL, not `localhost`.

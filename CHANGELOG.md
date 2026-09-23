@@ -17,6 +17,12 @@ All notable changes to this plugin. Versions follow the `version:` field in
 - Settings link on the admin page.
 
 ### Fixed
+- Checkout goes straight to the invoice: Discourse proceeds the plan checkout
+  server-side, so there is no second "Subscribe" click on BTCPay and no BTCPay
+  redirect that can land on localhost. A plan covered by credit activates with
+  no payment step at all.
+- Plan descriptions are cooked through Discourse's markdown pipeline, so bold,
+  links and lists render on the plan cards.
 - `/tickets` and `/billing` no longer 404 when opened directly or refreshed —
   Rails now serves the app shell for both.
 - The "no subscription" block is hidden on `/tickets` instead of announcing an

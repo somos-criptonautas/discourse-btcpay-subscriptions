@@ -16,6 +16,9 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
   end
 
   before do
+    stub_request(:post, %r{https://btcpay\.example\.com/api/v1/plan-checkout/})
+      .to_return(status: 200, body: { id: "chk_1", invoiceId: "INV9" }.to_json)
+
     SiteSetting.btcpay_enabled = true
     SiteSetting.btcpay_server_url = "https://btcpay.example.com"
     SiteSetting.btcpay_api_key = "key"
@@ -85,6 +88,66 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       post "/btcpay/checkout.json", params: { plan_id: "nope" }
 
       expect(response.status).to eq(404)
+    end
+
+    it "proceeds the checkout so the payer lands on the invoice, not BTCPay's Subscribe page" do
+      stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
+        .to_return(status: 200, body: checkout_response.except(:invoiceId).to_json)
+      proceed =
+        stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout/chk_1")
+          .to_return(status: 200, body: { id: "chk_1", invoiceId: "INV42" }.to_json)
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(proceed).to have_been_requested
+      expect(response.parsed_body["invoice_id"]).to eq("INV42")
+      expect(response.parsed_body["checkout_url"]).to eq(
+        "https://btcpay.example.com/i/INV42"
+      )
+    end
+
+    it "reports a plan that credit already covered, with nothing to pay" do
+      stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
+        .to_return(status: 200, body: checkout_response.except(:invoiceId).to_json)
+      stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout/chk_1")
+        .to_return(status: 200, body: { id: "chk_1", planStarted: true }.to_json)
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(response.parsed_body["plan_started"]).to eq(true)
+      expect(response.parsed_body["checkout_url"]).to be_nil
+    end
+
+    it "falls back to BTCPay's checkout page when proceeding fails" do
+      stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
+        .to_return(status: 200, body: checkout_response.except(:invoiceId).to_json)
+      stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout/chk_1").to_timeout
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(response.status).to eq(200)
+      expect(response.parsed_body["checkout_url"]).to eq(
+        "https://btcpay.example.com/i/INV9"
+      )
+    end
+
+    it "cooks plan descriptions so markdown renders" do
+      stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
+        .to_return(
+          status: 200,
+          body: {
+            id: "off-1",
+            plans: [
+              { id: "plan-1", name: "Premium", price: "10", description: "**bold** perk" }
+            ]
+          }.to_json
+        )
+
+      get "/btcpay/plans.json"
+
+      expect(response.parsed_body["plans"].first["description_html"]).to include(
+        "<strong>bold</strong>"
+      )
     end
 
     it "posts a store-scoped body to the top-level plan-checkout endpoint" do

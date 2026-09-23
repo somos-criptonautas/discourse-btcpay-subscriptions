@@ -4,6 +4,7 @@ import { fn } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
+import { htmlSafe } from "@ember/template";
 import { ajax } from "discourse/lib/ajax";
 import { extractError } from "discourse/lib/ajax-error";
 import { eq, not, or } from "discourse/truth-helpers";
@@ -152,6 +153,13 @@ export default class BtcpayCheckout extends Component {
         type: "POST",
         data: { plan_id: this.selectedPlan },
       });
+
+      // Credit covered it: the plan is already running, nothing to pay
+      if (result.plan_started) {
+        this.settled = true;
+        await this.loadCurrent();
+        return;
+      }
 
       if (await this.openModal(result)) {
         return;
@@ -310,7 +318,11 @@ export default class BtcpayCheckout extends Component {
                     </span>
                   {{/if}}
 
-                  {{#if plan.description}}
+                  {{#if plan.description_html}}
+                    <span class="btcpay-plan__description cooked">
+                      {{htmlSafe plan.description_html}}
+                    </span>
+                  {{else if plan.description}}
                     <span class="btcpay-plan__description">
                       {{plan.description}}
                     </span>

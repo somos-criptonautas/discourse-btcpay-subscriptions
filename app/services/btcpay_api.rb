@@ -60,6 +60,18 @@ module DiscourseBtcpay
       post("/api/v1/plan-checkout", body)
     end
 
+    # Continues a checkout: BTCPay either assigns the invoice to pay
+    # (invoiceId) or starts the plan outright when nothing is due
+    # (planStarted). Skipping this leaves the payer on BTCPay's own
+    # "Subscribe" page for a second click.
+    def proceed_plan_checkout(checkout_id)
+      post("/api/v1/plan-checkout/#{CGI.escape(checkout_id.to_s)}", {})
+    end
+
+    def invoice_url(invoice_id)
+      "#{@base_url}/i/#{invoice_id}"
+    end
+
     # Returns a SubscriberModel: { isActive, isSuspended, phase, periodEnd, plan, customer, ... }
     def subscriber(customer_selector)
       get(

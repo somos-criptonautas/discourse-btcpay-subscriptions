@@ -35,8 +35,9 @@ module DiscourseBtcpay
         discourse_plan_id: plan_id
       }
 
+      api = BtcpayApi.new
       result =
-        BtcpayApi.new.create_plan_checkout(
+        api.create_plan_checkout(
           plan_id: plan_id,
           # A returning subscriber keeps their BTCPay customer record
           customer_selector: existing && existing["customer_id"],
@@ -47,21 +48,37 @@ module DiscourseBtcpay
           on_pay_behavior: change == :upgrade ? "HardMigration" : nil
         )
 
-      checkout_url = public_checkout_url(result["url"] || result["redirectUrl"])
+      remember_customer(result)
+
+      # Take the checkout to its second stage here rather than making the
+      # payer click "Subscribe" on BTCPay and follow BTCPay's own redirect.
+      proceeded = proceed(api, result)
+      invoice_id = proceeded["invoiceId"] || result["invoiceId"]
+
+      if proceeded["planStarted"] && invoice_id.blank?
+        # Covered by credit: nothing to pay, PlanStarted grants the group.
+        return render json: { plan_started: true }
+      end
+
+      checkout_url =
+        if invoice_id.present?
+          api.invoice_url(invoice_id)
+        else
+          public_checkout_url(result["url"] || result["redirectUrl"])
+        end
 
       unless checkout_url
         Rails.logger.error("DiscourseBtcpay: No checkout URL returned: #{result.inspect}")
         return render json: { error: I18n.t("discourse_btcpay.errors.checkout_failed") }, status: :bad_gateway
       end
 
-      remember_customer(result)
-
       # invoice_id + modal_url let the client open BTCPay's overlay; the
       # checkout_url is the fallback when the modal script can't load.
       render json: {
         checkout_url: checkout_url,
-        invoice_id: result["invoiceId"],
-        modal_url: "#{SiteSetting.btcpay_server_url.chomp("/")}/modal/btcpay.js"
+        invoice_id: invoice_id,
+        modal_url: "#{SiteSetting.btcpay_server_url.chomp("/")}/modal/btcpay.js",
+        plan_started: false
       }
     rescue RateLimiter::LimitExceeded
       render json: { error: I18n.t("discourse_btcpay.errors.rate_limited") }, status: :too_many_requests
@@ -112,6 +129,9 @@ module DiscourseBtcpay
             currency: plan["currency"],
             interval: plan["recurringType"],
             description: plan["description"],
+            # BTCPay stores the description as plain text; run it through
+            # Discourse's own markdown + sanitizer so bold, links and lists work
+            description_html: cooked(plan["description"]),
             trial_days: plan["trialDays"]
           }
         end
@@ -161,6 +181,23 @@ module DiscourseBtcpay
         render json: { error: I18n.t("discourse_btcpay.errors.missing_config") },
                status: :service_unavailable
       end
+    end
+
+    def cooked(text)
+      return nil if text.blank?
+
+      PrettyText.cook(text)
+    end
+
+    def proceed(api, result)
+      checkout_id = result["id"]
+      return {} if checkout_id.blank?
+
+      api.proceed_plan_checkout(checkout_id)
+    rescue BtcpayApi::ApiError => e
+      # Fall back to BTCPay's own checkout page rather than failing the buy
+      Rails.logger.warn("DiscourseBtcpay: Could not proceed checkout #{checkout_id}: #{e.message}")
+      {}
     end
 
     # BTCPay builds these URLs from whatever host it thinks it is reachable at.
