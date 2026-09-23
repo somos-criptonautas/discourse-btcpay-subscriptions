@@ -5,7 +5,7 @@
 # version: 0.1.0
 # authors: Criptonautas
 # url: https://github.com/somos-criptonautas/discourse-btcpay-subscriptions
-# required_version: 2.7.0
+# required_version: 3.4.0
 
 enabled_site_setting :btcpay_enabled
 
@@ -46,6 +46,50 @@ after_initialize do
 
     def self.get_plans
       ::PluginStore.get(PLUGIN_NAME, "plans") || []
+    end
+
+    PLANS_CACHE_TTL = 10.minutes
+
+    # The offering is the catalogue: plans are read from BTCPay, not typed in
+    # twice. Cached per store+offering so a busy page does not hammer it.
+    def self.remote_plans(refresh: false)
+      key = "btcpay_plans_#{SiteSetting.btcpay_store_id}_#{SiteSetting.btcpay_offering_id}"
+      ::Discourse.cache.delete(key) if refresh
+
+      plans =
+        ::Discourse.cache.fetch(key, expires_in: PLANS_CACHE_TTL) do
+          begin
+            BtcpayApi.new.plans
+          rescue BtcpayApi::ApiError => e
+            Rails.logger.warn("DiscourseBtcpay: Could not fetch plans from BTCPay: #{e.message}")
+            nil
+          end
+        end
+
+      plans.is_a?(Array) ? plans : []
+    end
+
+    def self.remote_plan(plan_id)
+      remote_plans.find { |p| p["id"] == plan_id }
+    end
+
+    # A plan earns its Discourse group from one of two places: the mapping
+    # setting (explicit, local, wins) or `discourse_group` in the plan's own
+    # BTCPay metadata (so a store can be configured entirely on BTCPay's side).
+    def self.group_for_plan(plan_id, plan: nil)
+      mapped = plan_mappings.find { |m| m["plan_id"] == plan_id }
+      return mapped["group_name"] if mapped && mapped["group_name"].present?
+
+      plan ||= remote_plan(plan_id)
+      plan&.dig("metadata", "discourse_group").presence
+    end
+
+    def self.label_for_plan(plan_id, plan: nil)
+      mapped = plan_mappings.find { |m| m["plan_id"] == plan_id }
+      return mapped["label"] if mapped && mapped["label"].present?
+
+      plan ||= remote_plan(plan_id)
+      plan&.dig("name").presence || plan_id
     end
 
     # Single source of truth for plan → group mappings.
@@ -90,22 +134,25 @@ after_initialize do
 
     # One place that knows how subscription rows are stored, so the webhook,
     # the reconcile job and the admin list stop re-deriving it.
-    def self.each_subscription
-      return enum_for(:each_subscription) unless block_given?
+    # Ordered by key so a caller can resume from where it stopped.
+    def self.each_subscription(after_key: nil, limit: nil)
+      return enum_for(:each_subscription, after_key: after_key, limit: limit) unless block_given?
 
-      ::PluginStoreRow
-        .where(plugin_name: PLUGIN_NAME)
-        .where("key LIKE ?", "sub:%")
-        .find_each do |row|
-          data = JSON.parse(row.value) rescue next
-          yield row.key.sub("sub:", "").to_i, data
-        end
+      scope = ::PluginStoreRow.where(plugin_name: PLUGIN_NAME).where("key LIKE ?", "sub:%")
+      scope = scope.where("key > ?", after_key) if after_key.present?
+
+      rows = limit ? scope.order(:key).limit(limit) : scope.order(:key)
+
+      rows.each do |row|
+        data = JSON.parse(row.value) rescue next
+        yield row.key.sub("sub:", "").to_i, data, row.key
+      end
     end
 
     def self.user_id_for_customer(customer_id)
       return nil if customer_id.blank?
 
-      each_subscription do |user_id, data|
+      each_subscription do |user_id, data, _key|
         return user_id if data["customer_id"] == customer_id
       end
       nil
@@ -188,8 +235,19 @@ after_initialize do
     end
   end
 
+  # Plugin-store rows are keyed by user id, so they would outlive the account.
+  on(:user_destroyed) do |user|
+    %w[sub payments progress].each do |prefix|
+      PluginStore.remove(DiscourseBtcpay::PLUGIN_NAME, "#{prefix}:#{user.id}")
+    end
+  end
+
   # Add BTCPay tab to user preferences
-  add_to_serializer(:current_user, :btcpay_subscription) do
+  add_to_serializer(
+    :current_user,
+    :btcpay_subscription,
+    include_condition: -> { SiteSetting.btcpay_enabled }
+  ) do
     sub = DiscourseBtcpay.get_subscription(object.id)
     return nil unless sub
     {

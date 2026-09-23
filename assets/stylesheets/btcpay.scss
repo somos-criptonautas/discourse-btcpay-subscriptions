@@ -104,12 +104,12 @@
     margin-bottom: 1.5em;
 
     &.btcpay-status-active {
-      border-left: 4px solid var(--success);
+      border-inline-start: 4px solid var(--success);
       background: inherit;
     }
 
     &.btcpay-status-disputed {
-      border-left: 4px solid var(--danger);
+      border-inline-start: 4px solid var(--danger);
       background: inherit;
     }
   }
@@ -228,7 +228,7 @@
   }
 
   .btcpay-settings-btn {
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 }
 
@@ -246,7 +246,7 @@
 .btcpay-progress {
   .btcpay-progress-list {
     margin: 0.5em 0 0;
-    padding-left: 1.2em;
+    padding-inline-start: 1.2em;
 
     li.pending {
       color: var(--primary-medium);
@@ -268,7 +268,7 @@
   }
 
   .btcpay-plan-badge {
-    margin-left: 0.5em;
+    margin-inline-start: 0.5em;
     font-size: var(--font-down-2);
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -283,7 +283,7 @@
   }
 
   .btcpay-plan-trial {
-    margin-left: 0.5em;
+    margin-inline-start: 0.5em;
     color: var(--tertiary);
     font-size: var(--font-down-1);
   }

@@ -47,7 +47,8 @@ module DiscourseBtcpay
           fully_synched: info && info["fullySynched"],
           chain_height: chain && chain["chainHeight"],
           network: network_from_height(chain && chain["chainHeight"]),
-          cryptos: sync.filter_map { |s| s["cryptoCode"] }.uniq
+          cryptos: sync.filter_map { |s| s["cryptoCode"] }.uniq,
+          plans: offering_plans
         }
       end
 
@@ -85,6 +86,34 @@ module DiscourseBtcpay
       end
 
       private
+
+      # What BTCPay lists for the configured offering, and whether each plan
+      # can actually grant anything here.
+      def offering_plans
+        DiscourseBtcpay.remote_plans.map do |plan|
+          plan_id = plan["id"]
+          group_name = DiscourseBtcpay.group_for_plan(plan_id, plan: plan)
+
+          {
+            id: plan_id,
+            name: plan["name"],
+            price: plan["price"],
+            currency: plan["currency"],
+            interval: plan["recurringType"],
+            group_name: group_name,
+            group_exists: group_name.present? && Group.exists?(name: group_name),
+            source: group_source(plan_id, plan)
+          }
+        end
+      end
+
+      def group_source(plan_id, plan)
+        mapped = DiscourseBtcpay.plan_mappings.find { |m| m["plan_id"] == plan_id }
+        return "setting" if mapped && mapped["group_name"].present?
+        return "btcpay" if plan.dig("metadata", "discourse_group").present?
+
+        nil
+      end
 
       # ponytail: Greenfield exposes no network field, so we read it off the
       # chain tip. Swap for the store's derivation-scheme prefix (xpub vs tpub)

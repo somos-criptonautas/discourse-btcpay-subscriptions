@@ -11,5 +11,13 @@ permissions:
   contents: read
 
 jobs:
+  # The line we develop against
   ci:
     uses: discourse/.github/.github/workflows/discourse-plugin.yml@v1
+
+  # The oldest line we claim to support, so the claim in the README is tested
+  # rather than asserted. Lint runs once above; this job is for the specs.
+  ci-stable:
+    uses: discourse/.github/.github/workflows/discourse-plugin.yml@v1
+    with:
+      core_ref: stable

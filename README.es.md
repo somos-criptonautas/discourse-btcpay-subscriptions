@@ -21,7 +21,7 @@ BTCPay es el dueño del ciclo de vida de la suscripción. Discourse gestiona la 
 
 ## Requisitos
 
-- Discourse 2.7+
+- Discourse 3.4+ (desarrollado y probado en CI contra `latest`; el frontend usa componentes `.gjs`, `discourse/truth-helpers` y `discourse-i18n`, que no existen en versiones anteriores)
 - BTCPay Server 2.3+ (con la función de Suscripciones)
 - Ambos en el mismo servidor (o accesibles entre sí por red)
 - Nginx como proxy inverso con SSL válido
@@ -181,25 +181,58 @@ Si el script del modal no puede cargarse (CSP, host de BTCPay caído), el botón
 ## Esquema del PluginStore
 
 ```
-btcpay_sub:{user_id}       → { customer_id, offering_id, plan_id, plan_name,
-                                group_name, status, phase, auto_renew,
-                                period_end, trial_end, grace_period_end,
-                                next_plan_id, next_plan_name, next_plan_at,
-                                updated_at }
+# Todas las filas viven bajo plugin_name = "discourse-btcpay-subscriptions"
 
-btcpay_progress:{user_id}  → { invoice_id, payments: [ { value, method,
-                                status, settled, received_at } ], updated_at }
-                             (se limpia cuando la factura se resuelve)
+sub:{user_id}          → { customer_id, offering_id, plan_id, plan_name,
+                           group_name, status, phase, auto_renew, period_end,
+                           trial_end, grace_period_end, next_plan_id,
+                           next_plan_name, next_plan_at, needs_upgrade,
+                           updated_at }
 
-btcpay_payments:{user_id}  → [ { invoice_id, amount, currency, payment_method,
-                                 status, paid_at }, ... ]
+payments:{user_id}     → [ { invoice_id, amount, currency, payment_method,
+                             status, paid_at }, ... ] (últimas 100)
 
-processed_invoices         → [ "invoice_id_1", ... ] (últimas 1000)
+progress:{user_id}     → { invoice_id, payments: [ { id, value, method, status,
+                           settled, after_expiration, received_at } ],
+                           updated_at }   (se limpia al resolverse la factura)
 
-hmac_failures              → { count, last_at }
+processed_invoices     → [ "invoice_id", ... ] (últimas 1000, idempotencia de liquidación)
 
-reconcile_last_run_at      → marca de tiempo ISO8601 de la última reconciliación
+alerts                 → [ "partial:INV1", "over:INV2", ... ] (últimos 500, avisos únicos
+                           al admin)
+
+hmac_failures          → { count, last_at }
+
+reconcile_last_run_at  → marca ISO8601 de la última pasada completa
+reconcile_cursor       → clave por la que continúa la siguiente pasada ("" = inicio)
 ```
+
+Para inspeccionarlas:
+
+```sql
+SELECT key, value FROM plugin_store_rows
+WHERE plugin_name = 'discourse-btcpay-subscriptions';
+```
+
+### Qué sale de tu foro
+
+Cada checkout envía a BTCPay el **id de usuario y el nombre de usuario** de quien paga, y el id del plan, como metadatos de la factura y del suscriptor. Nada más — ni email, ni mensajes, ni IP. BTCPay devuelve un id de cliente, datos de plan y periodo, e importes de pago, que se guardan en el plugin store como se describe arriba. El único host externo contactado es el de `btcpay_server_url`.
+
+## Actualizar, desactivar, desinstalar
+
+**Actualizar:** `cd /var/discourse && ./launcher rebuild app` toma el último commit del plugin, igual que la instalación. No hay migraciones de base de datos ni ajustes o claves de almacenamiento renombrados, así que la actualización es en sitio y reversible volviendo a un commit anterior y reconstruyendo. Revisa [CHANGELOG.md](CHANGELOG.md) antes de actualizar.
+
+**Desactivar:** apaga `btcpay_enabled`. El trabajo programado deja de actuar, los endpoints de webhook y checkout rechazan las peticiones y el JS no registra rutas ni enlaces. No se borra nada, y las membresías de grupo ya concedidas se mantienen — el acceso lo mandan los grupos de Discourse, no este plugin.
+
+**Desinstalar:** quita el plugin de `app.yml` y reconstruye. **Los datos del plugin store se conservan a propósito** — suscripciones, historial de pagos e ids de cliente de BTCPay sobreviven a la desinstalación para no perder el historial de quienes ya pagaron. Para borrarlos deliberadamente:
+
+```sql
+DELETE FROM plugin_store_rows WHERE plugin_name = 'discourse-btcpay-subscriptions';
+```
+
+Los registros de un **usuario eliminado** se borran automáticamente cuando Discourse destruye la cuenta.
+
+**Soporte:** abre una incidencia en https://github.com/somos-criptonautas/discourse-btcpay-subscriptions/issues indicando las versiones de Discourse y BTCPay, las entradas relevantes de `/logs` (busca `DiscourseBtcpay`) y el registro de entregas del webhook en BTCPay.
 
 ## Resolución de problemas
 

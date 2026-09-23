@@ -107,6 +107,38 @@ describe Jobs::BtcpayReconcile do
     expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("pending")
   end
 
+  it "caps a tick and resumes from the cursor on the next one" do
+    stub_const("Jobs::BtcpayReconcile::MAX_PER_TICK", 1)
+
+    other = Fabricate(:user)
+    store(status: "active")
+    DiscourseBtcpay.store_subscription(
+      other.id,
+      {
+        "customer_id" => "cust_other",
+        "plan_id" => "plan-1",
+        "group_name" => "premium",
+        "status" => "active"
+      }
+    )
+    stub_request(:get, subscriber_url).to_return(status: 200, body: remote.to_json)
+    stub_request(:get, subscriber_url.sub(customer_id, "cust_other")).to_return(
+      status: 200,
+      body: remote.to_json
+    )
+
+    described_class.new.execute({})
+    expect(
+      PluginStore.get(DiscourseBtcpay::PLUGIN_NAME, described_class::CURSOR_KEY)
+    ).to be_present
+    # A capped tick is not a finished sweep, so the interval is not consumed
+    expect(last_run).to be_nil
+
+    described_class.new.execute({})
+    expect(PluginStore.get(DiscourseBtcpay::PLUGIN_NAME, described_class::CURSOR_KEY)).to eq("")
+    expect(last_run).to be_present
+  end
+
   it "skips ticks inside the configured interval" do
     store(status: "active")
     stub_request(:get, subscriber_url).to_return(status: 200, body: remote.to_json)

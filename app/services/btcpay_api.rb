@@ -76,11 +76,11 @@ module DiscourseBtcpay
     end
 
     def invoice(invoice_id)
-      get("/api/v1/stores/#{@store_id}/invoices/#{invoice_id}")
+      get("/api/v1/stores/#{@store_id}/invoices/#{CGI.escape(invoice_id.to_s)}")
     end
 
     def invoice_payment_methods(invoice_id)
-      get("/api/v1/stores/#{@store_id}/invoices/#{invoice_id}/payment-methods")
+      get("/api/v1/stores/#{@store_id}/invoices/#{CGI.escape(invoice_id.to_s)}/payment-methods")
     end
 
     # Which crypto actually paid an invoice ("BTC", "XMR", "BTC-LightningNetwork", …).

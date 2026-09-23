@@ -320,7 +320,7 @@ module DiscourseBtcpay
       manager = BtcpaySubscriptionManager.new
       manager.record_payment(
         user_id,
-        invoice_id: "credit-#{event["amount"]}-#{Time.now.to_i}",
+        invoice_id: "credit-#{delivery_key(event)}",
         amount: event["amount"],
         currency: event["currency"],
         payment_method: "credit",
@@ -335,7 +335,7 @@ module DiscourseBtcpay
 
       BtcpaySubscriptionManager.new.record_payment(
         user_id,
-        invoice_id: "credited-#{event["amount"]}-#{Time.now.to_i}",
+        invoice_id: "credited-#{delivery_key(event)}",
         amount: event["amount"],
         currency: event["currency"],
         payment_method: "credit",
@@ -422,6 +422,18 @@ module DiscourseBtcpay
         "A refund was created for invoice #{invoice_id} ('#{user&.username || user_id}', " \
         "pull payment #{event["pullPaymentId"] || "n/a"}). Group access was left untouched — " \
         "remove it by hand if the refund is final.")
+    end
+
+    # Credit events carry no invoice, so the delivery identifies them.
+    # originalDeliveryId is stable across BTCPay's retries; the digest is the
+    # fallback for a payload that carries neither.
+    def delivery_key(event)
+      id = event["originalDeliveryId"].presence || event["deliveryId"].presence
+      return id if id
+
+      Digest::SHA1.hexdigest(
+        [event["type"], event["amount"], event["currency"], event.dig("subscriber", "customer", "id")].join(":")
+      )[0, 16]
     end
 
     def report_partial_payment(user_id, invoice_id)

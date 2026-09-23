@@ -6,13 +6,13 @@ module DiscourseBtcpay
       @api = BtcpayApi.new
     end
 
-    # Resolve plan_id to group_name from admin settings
-    def group_for_plan(plan_id)
-      mapping_for(plan_id)&.dig("group_name")
+    # Mapping setting first, then the plan's own BTCPay metadata
+    def group_for_plan(plan_id, plan: nil)
+      DiscourseBtcpay.group_for_plan(plan_id, plan: plan)
     end
 
-    def plan_label(plan_id)
-      mapping_for(plan_id)&.dig("label") || plan_id
+    def plan_label(plan_id, plan: nil)
+      DiscourseBtcpay.label_for_plan(plan_id, plan: plan)
     end
 
     # Activate: store state + add to group. customer_id is BTCPay's customer id,
@@ -33,7 +33,7 @@ module DiscourseBtcpay
         return { success: false, error: :user_not_found }
       end
 
-      group_name = group_for_plan(plan_id)
+      group_name = group_for_plan(plan_id, plan: subscriber&.dig("plan"))
       unless group_name
         Rails.logger.error("DiscourseBtcpay: No group mapping for plan #{plan_id}")
         DiscourseBtcpay.notify_admin("Plan Mapping Missing",
@@ -55,7 +55,7 @@ module DiscourseBtcpay
         "customer_id" => customer_id,
         "offering_id" => SiteSetting.btcpay_offering_id,
         "plan_id" => plan_id,
-        "plan_name" => plan_label(plan_id),
+        "plan_name" => plan_label(plan_id, plan: subscriber&.dig("plan")),
         "group_name" => group_name,
         "status" => "active",
         "needs_upgrade" => false,
@@ -170,7 +170,7 @@ module DiscourseBtcpay
 
     # All subscriptions from PluginStore (admin view)
     def all_subscriptions
-      DiscourseBtcpay.each_subscription.map do |user_id, data|
+      DiscourseBtcpay.each_subscription.map do |user_id, data, _key|
         user = User.find_by(id: user_id)
         next unless user
 
@@ -196,10 +196,6 @@ module DiscourseBtcpay
         "next_plan_name" => scheduled && (scheduled["name"] || plan_label(scheduled["id"])),
         "next_plan_at" => timestamp(subscriber["scheduledPlanActivatesAt"])
       }
-    end
-
-    def mapping_for(plan_id)
-      DiscourseBtcpay.plan_mappings.find { |m| m["plan_id"] == plan_id }
     end
 
     def fetch_subscriber(customer_id)

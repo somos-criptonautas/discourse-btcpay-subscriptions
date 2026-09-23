@@ -186,6 +186,71 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       RateLimiter.disable
     end
 
+    it "offers every plan in the offering, mapped by BTCPay metadata" do
+      Fabricate(:group, name: "vip")
+      SiteSetting.btcpay_plan_mappings = "[]"
+      stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
+        .to_return(
+          status: 200,
+          body: {
+            id: "off-1",
+            plans: [
+              {
+                id: "plan-2",
+                name: "VIP",
+                price: "25",
+                currency: "USD",
+                recurringType: "Monthly",
+                metadata: { discourse_group: "vip" }
+              }
+            ]
+          }.to_json
+        )
+
+      get "/btcpay/plans.json"
+
+      plan = response.parsed_body["plans"].first
+      expect(plan["plan_id"]).to eq("plan-2")
+      expect(plan["label"]).to eq("VIP")
+      expect(plan["group_name"]).to eq("vip")
+    end
+
+    it "hides plans that resolve to no group" do
+      SiteSetting.btcpay_plan_mappings = "[]"
+      stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
+        .to_return(
+          status: 200,
+          body: { id: "off-1", plans: [{ id: "plan-9", name: "Orphan", price: "5" }] }.to_json
+        )
+
+      get "/btcpay/plans.json"
+
+      expect(response.parsed_body["plans"]).to eq([])
+    end
+
+    it "lets the mapping setting override BTCPay metadata" do
+      Fabricate(:group, name: "vip")
+      SiteSetting.btcpay_plan_mappings = [
+        { plan_id: "plan-2", group_name: "premium", label: "Mapped" }
+      ].to_json
+      stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
+        .to_return(
+          status: 200,
+          body: {
+            id: "off-1",
+            plans: [
+              { id: "plan-2", name: "VIP", price: "25", metadata: { discourse_group: "vip" } }
+            ]
+          }.to_json
+        )
+
+      get "/btcpay/plans.json"
+
+      plan = response.parsed_body["plans"].first
+      expect(plan["group_name"]).to eq("premium")
+      expect(plan["label"]).to eq("Mapped")
+    end
+
     it "prices plans from the offering and caches them" do
       stub =
         stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
@@ -215,15 +280,14 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       expect(stub).to have_been_requested.once
     end
 
-    it "still lists plans when BTCPay is unreachable" do
+    it "returns no plans rather than erroring when BTCPay is unreachable" do
       stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
         .to_timeout
 
       get "/btcpay/plans.json"
 
       expect(response.status).to eq(200)
-      expect(response.parsed_body["plans"].first["label"]).to eq("Premium")
-      expect(response.parsed_body["plans"].first["price"]).to be_nil
+      expect(response.parsed_body["plans"]).to eq([])
     end
 
     it "returns a real portal session url" do

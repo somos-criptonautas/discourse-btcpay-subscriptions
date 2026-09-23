@@ -258,7 +258,10 @@ export default class BtcpayCheckout extends Component {
         {{/if}}
 
         {{#if this.offers.length}}
-          <div class="btcpay-plans">
+          <fieldset class="btcpay-plans">
+            <legend class="btcpay-plans-legend">
+              {{i18n "btcpay.checkout.choose_plan"}}
+            </legend>
             {{#each this.offers as |plan|}}
               <label
                 class="btcpay-plan-option
@@ -302,7 +305,7 @@ export default class BtcpayCheckout extends Component {
                 {{/if}}
               </label>
             {{/each}}
-          </div>
+          </fieldset>
 
           <button
             type="button"

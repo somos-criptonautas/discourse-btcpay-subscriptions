@@ -7,9 +7,6 @@ module DiscourseBtcpay
     before_action :ensure_logged_in
     before_action :ensure_btcpay_configured
 
-    PLANS_CACHE_KEY = "btcpay_remote_plans"
-    PLANS_CACHE_TTL = 10.minutes
-
     # POST /btcpay/checkout
     # Body: { plan_id: "xxx" }
     def create
@@ -98,23 +95,25 @@ module DiscourseBtcpay
     end
 
     # GET /btcpay/plans
+    # The offering is the catalogue: every plan BTCPay lists is offered, as
+    # long as it resolves to a Discourse group.
     def plans
-      remote = remote_plans
-
       plans =
-        DiscourseBtcpay.plan_mappings.map do |mapping|
-          plan = mapping.dup
-          details = remote.find { |p| p["id"] == plan["plan_id"] }
-          next plan unless details
+        DiscourseBtcpay.remote_plans.filter_map do |plan|
+          plan_id = plan["id"]
+          group_name = DiscourseBtcpay.group_for_plan(plan_id, plan: plan)
+          next if group_name.blank?
 
-          # BTCPay is the source of truth for price; the mapping only names it.
-          plan["label"] = plan["label"].presence || details["name"]
-          plan["price"] = details["price"]
-          plan["currency"] = details["currency"]
-          plan["interval"] = details["recurringType"]
-          plan["description"] = details["description"]
-          plan["trial_days"] = details["trialDays"]
-          plan
+          {
+            plan_id: plan_id,
+            label: DiscourseBtcpay.label_for_plan(plan_id, plan: plan),
+            group_name: group_name,
+            price: plan["price"],
+            currency: plan["currency"],
+            interval: plan["recurringType"],
+            description: plan["description"],
+            trial_days: plan["trialDays"]
+          }
         end
 
       render json: { plans: plans }
@@ -130,27 +129,12 @@ module DiscourseBtcpay
       current_plan_id = existing["plan_id"]
       return :renewal if current_plan_id == plan_id
 
-      prices = remote_plans.index_by { |p| p["id"] }
+      prices = DiscourseBtcpay.remote_plans.index_by { |p| p["id"] }
       current = prices[current_plan_id]
       wanted = prices[plan_id]
       return :new if current.nil? || wanted.nil?
 
       wanted["price"].to_f > current["price"].to_f ? :upgrade : :downgrade
-    end
-
-    # Prices come from BTCPay, cached so a popular page does not hammer it.
-    def remote_plans
-      cached =
-        Discourse
-          .cache
-          .fetch(PLANS_CACHE_KEY, expires_in: PLANS_CACHE_TTL) do
-            BtcpayApi.new.plans
-          rescue BtcpayApi::ApiError => e
-            Rails.logger.warn("DiscourseBtcpay: Could not fetch plans from BTCPay: #{e.message}")
-            nil
-          end
-
-      cached.is_a?(Array) ? cached : []
     end
 
     # BTCPay may have created the customer during checkout; hold on to the id

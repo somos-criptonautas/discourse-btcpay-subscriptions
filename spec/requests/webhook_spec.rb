@@ -332,6 +332,24 @@ describe DiscourseBtcpay::BtcpayWebhookController do
     expect(payment["amount"]).to eq("10.00")
   end
 
+  it "does not double-count a redelivered credit charge" do
+    deliver(type: "PlanStarted", subscriber: subscriber)
+
+    2.times do
+      deliver(
+        type: "SubscriberCharged",
+        deliveryId: "del-2",
+        originalDeliveryId: "del-1",
+        amount: "10.00",
+        currency: "USD",
+        subscriber: subscriber
+      )
+    end
+
+    credits = DiscourseBtcpay.get_payments(user.id).select { |p| p["payment_method"] == "credit" }
+    expect(credits.size).to eq(1)
+  end
+
   it "flags a subscriber that needs an upgrade and clears it on the next plan" do
     Fabricate(:admin)
     deliver(type: "PlanStarted", subscriber: subscriber)

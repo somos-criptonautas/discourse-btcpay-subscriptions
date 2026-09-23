@@ -6,11 +6,15 @@ import { action } from "@ember/object";
 import { ajax } from "discourse/lib/ajax";
 import { extractError, popupAjaxError } from "discourse/lib/ajax-error";
 import getURL from "discourse/lib/get-url";
-import { eq } from "discourse/truth-helpers";
+import { eq, not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 import { PLUGIN_ID } from "../lib/plugin-id";
 
 const FILTERS = ["all", "active", "pending", "expired", "cancelled"];
+
+function profileUrl(username) {
+  return getURL(`/u/${username}`);
+}
 
 export default class BtcpayAdminDashboard extends Component {
   @tracked subscriptions = [];
@@ -21,12 +25,21 @@ export default class BtcpayAdminDashboard extends Component {
   @tracked syncing = false;
   @tracked filter = "all";
 
+  reloadTimer = null;
+
   filters = FILTERS;
 
   constructor() {
     super(...arguments);
     this.loadServerInfo();
     this.loadSubscriptions();
+  }
+
+  willDestroy() {
+    super.willDestroy(...arguments);
+    if (this.reloadTimer) {
+      clearTimeout(this.reloadTimer);
+    }
   }
 
   async loadServerInfo() {
@@ -65,6 +78,15 @@ export default class BtcpayAdminDashboard extends Component {
     return getURL(`/admin/plugins/${PLUGIN_ID}/settings`);
   }
 
+  get cryptoList() {
+    return (this.server.cryptos || []).join(", ");
+  }
+
+  // Plans BTCPay lists but that grant nothing here yet
+  get unmappedPlans() {
+    return (this.server.plans || []).filter((p) => !p.group_name);
+  }
+
   get missingSettings() {
     return (this.server.missing_settings || []).join(", ");
   }
@@ -85,7 +107,7 @@ export default class BtcpayAdminDashboard extends Component {
     try {
       await ajax("/admin/plugins/btcpay/sync", { type: "POST" });
       // Reload after brief delay to let job run
-      setTimeout(() => this.loadSubscriptions(), 3000);
+      this.reloadTimer = setTimeout(() => this.loadSubscriptions(), 3000);
     } catch (e) {
       popupAjaxError(e);
     } finally {
@@ -111,7 +133,7 @@ export default class BtcpayAdminDashboard extends Component {
             <span class="btcpay-server-version">v{{this.server.version}}</span>
           {{/if}}
           {{#if this.server.cryptos}}
-            <span class="btcpay-cryptos">{{this.server.cryptos}}</span>
+            <span class="btcpay-cryptos">{{this.cryptoList}}</span>
           {{/if}}
           {{#if this.server.chain_height}}
             <span class="btcpay-chain-height">
@@ -121,16 +143,15 @@ export default class BtcpayAdminDashboard extends Component {
               }}
             </span>
           {{/if}}
-          {{#unless this.server.reachable}}
+          {{#if (not this.server.reachable)}}
             <span class="btcpay-not-synced">
               {{i18n "btcpay.admin.unreachable"}}
             </span>
-          {{/unless}}
-          {{#unless this.server.fully_synched}}
+          {{else if (not this.server.fully_synched)}}
             <span class="btcpay-not-synced">
               {{i18n "btcpay.admin.not_synced"}}
             </span>
-          {{/unless}}
+          {{/if}}
         {{else if this.serverError}}
           <span class="btcpay-not-configured">{{this.serverError}}</span>
         {{else}}
@@ -195,7 +216,43 @@ export default class BtcpayAdminDashboard extends Component {
           {{/if}}
         </div>
 
+        {{#if this.server.plans}}
+          <table class="btcpay-admin-table btcpay-plans-table">
+            <caption>{{i18n "btcpay.admin.plans_caption"}}</caption>
+            <thead>
+              <tr>
+                <th>{{i18n "btcpay.admin.col_plan"}}</th>
+                <th>{{i18n "btcpay.admin.col_price"}}</th>
+                <th>{{i18n "btcpay.admin.col_group"}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each this.server.plans as |plan|}}
+                <tr>
+                  <td>{{plan.name}}</td>
+                  <td>{{plan.price}} {{plan.currency}} / {{plan.interval}}</td>
+                  <td>
+                    {{#if plan.group_name}}
+                      {{plan.group_name}}
+                      {{#unless plan.group_exists}}
+                        <span class="btcpay-plan-warning">
+                          {{i18n "btcpay.admin.group_missing"}}
+                        </span>
+                      {{/unless}}
+                    {{else}}
+                      <span class="btcpay-plan-warning">
+                        {{i18n "btcpay.admin.plan_unmapped"}}
+                      </span>
+                    {{/if}}
+                  </td>
+                </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        {{/if}}
+
         <table class="btcpay-admin-table">
+          <caption>{{i18n "btcpay.admin.subscriptions_caption"}}</caption>
           <thead>
             <tr>
               <th>{{i18n "btcpay.admin.col_user"}}</th>
@@ -209,7 +266,9 @@ export default class BtcpayAdminDashboard extends Component {
           <tbody>
             {{#each this.subscriptions as |sub|}}
               <tr>
-                <td><a href="/u/{{sub.username}}">{{sub.username}}</a></td>
+                <td>
+                  <a href={{profileUrl sub.username}}>{{sub.username}}</a>
+                </td>
                 <td>{{sub.plan_name}}</td>
                 <td>
                   <span class="btcpay-badge btcpay-status-{{sub.status}}">

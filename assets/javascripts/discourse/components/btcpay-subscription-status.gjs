@@ -158,6 +158,7 @@ export default class BtcpaySubscriptionStatus extends Component {
         {{#if this.payments.length}}
           <h3>{{i18n "btcpay.billing.history"}}</h3>
           <table class="btcpay-payments-table">
+            <caption class="sr-only">{{i18n "btcpay.billing.history"}}</caption>
             <thead>
               <tr>
                 <th>{{i18n "btcpay.billing.col_date"}}</th>

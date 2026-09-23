@@ -7,7 +7,12 @@ module Jobs
     every 1.hour
 
     LAST_RUN_KEY = "reconcile_last_run_at"
+    CURSOR_KEY = "reconcile_cursor"
     PENDING_TIMEOUT = 24.hours
+    # One BTCPay call per subscriber, up to 25s each: cap the tick so a slow
+    # BTCPay cannot hold a Sidekiq worker for hours. The cursor makes the next
+    # tick resume where this one stopped.
+    MAX_PER_TICK = 200
 
     # BTCPay has no "list all subscribers" endpoint — subscribers are addressed
     # one selector at a time — so we walk our own records and ask about each.
@@ -25,8 +30,16 @@ module Jobs
       checked = 0
       fixed = 0
       failures = 0
+      seen = 0
+      last_key = nil
+      cursor = PluginStore.get(DiscourseBtcpay::PLUGIN_NAME, CURSOR_KEY)
 
-      DiscourseBtcpay.each_subscription do |user_id, local|
+      DiscourseBtcpay.each_subscription(
+        after_key: cursor,
+        limit: MAX_PER_TICK
+      ) do |user_id, local, key|
+        seen += 1
+        last_key = key
         customer_id = local["customer_id"]
 
         if customer_id.blank?
@@ -54,12 +67,18 @@ module Jobs
         fixed += 1 if reconcile_one(manager, user_id, local, remote)
       end
 
+      # A short page means the tail was reached: wrap the cursor and only then
+      # count the sweep as done for this interval.
+      completed = seen < MAX_PER_TICK
+      PluginStore.set(DiscourseBtcpay::PLUGIN_NAME, CURSOR_KEY, completed ? "" : last_key)
+
       # A tick that could not reach BTCPay at all should not consume the
       # window — the next hourly tick retries instead of waiting N hours.
-      mark_ran unless checked.zero? && failures.positive?
+      mark_ran if completed && !(checked.zero? && failures.positive?)
 
       Rails.logger.info(
-        "DiscourseBtcpay: Reconciliation complete. Checked: #{checked}, Fixed: #{fixed}, Failures: #{failures}"
+        "DiscourseBtcpay: Reconciliation pass done. Checked: #{checked}, Fixed: #{fixed}, " \
+          "Failures: #{failures}, Resuming at: #{completed ? "start" : last_key}"
       )
     end
 
