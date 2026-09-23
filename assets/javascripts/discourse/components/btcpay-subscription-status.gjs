@@ -9,6 +9,7 @@ import { i18n } from "discourse-i18n";
 
 export default class BtcpaySubscriptionStatus extends Component {
   @service currentUser;
+  @service siteSettings;
 
   @tracked subscription = null;
   @tracked payments = [];
@@ -18,7 +19,8 @@ export default class BtcpaySubscriptionStatus extends Component {
 
   constructor() {
     super(...arguments);
-    if (this.currentUser) {
+    // A disabled plugin must not reach the server at all
+    if (this.siteSettings.btcpay_enabled && this.currentUser) {
       this.load();
     } else {
       this.loading = false;
@@ -61,131 +63,139 @@ export default class BtcpaySubscriptionStatus extends Component {
   }
 
   <template>
-    <div class="btcpay-user-billing">
-      <h2>{{i18n "btcpay.billing.section_title"}}</h2>
+    {{#if this.siteSettings.btcpay_enabled}}
+      <div class="btcpay-user-billing">
+        <h2>{{i18n "btcpay.billing.section_title"}}</h2>
 
-      {{#if (not this.currentUser)}}
-        <p class="btcpay-anon">{{i18n "btcpay.billing.login_required"}}</p>
-      {{else if this.loading}}
-        <p>{{i18n "btcpay.loading"}}</p>
-      {{else if this.error}}
-        <div class="btcpay-error alert alert-error">{{this.error}}</div>
-      {{else if this.subscription}}
-        <div class="btcpay-sub-card {{this.statusClass}}">
-          <div class="btcpay-sub-info">
-            <div class="btcpay-sub-row">
-              <span class="label">{{i18n "btcpay.billing.plan"}}</span>
-              <span class="value">{{this.subscription.plan_name}}</span>
-            </div>
-            <div class="btcpay-sub-row">
-              <span class="label">{{i18n "btcpay.billing.status"}}</span>
-              <span class="value btcpay-badge {{this.statusClass}}">
-                {{i18n (concat "btcpay.status." this.subscription.status)}}
-              </span>
-            </div>
-            {{#if this.inTrial}}
-              <div class="btcpay-sub-row btcpay-trial">
-                <span class="label">{{i18n "btcpay.billing.trial"}}</span>
-                <span class="value">
-                  {{i18n
-                    "btcpay.billing.trial_ends"
-                    date=this.subscription.trial_end
-                  }}
-                </span>
-              </div>
-            {{/if}}
-
-            {{#if this.inGrace}}
-              <div class="btcpay-sub-row btcpay-grace">
-                <span class="label">{{i18n "btcpay.billing.grace"}}</span>
-                <span class="value">
-                  {{i18n
-                    "btcpay.billing.grace_ends"
-                    date=this.subscription.grace_period_end
-                  }}
-                </span>
-              </div>
-            {{/if}}
-
-            {{#if this.subscription.needs_upgrade}}
-              <div class="btcpay-sub-row btcpay-needs-upgrade">
-                <span class="value">{{i18n
-                    "btcpay.billing.needs_upgrade"
-                  }}</span>
-              </div>
-            {{/if}}
-
-            {{#if this.subscription.next_plan_name}}
-              <div class="btcpay-sub-row btcpay-next-plan">
-                <span class="value">
-                  {{i18n
-                    "btcpay.billing.next_plan"
-                    plan=this.subscription.next_plan_name
-                    date=this.subscription.next_plan_at
-                  }}
-                </span>
-              </div>
-            {{/if}}
-
-            {{#if this.showsAutoRenewOff}}
-              <div class="btcpay-sub-row btcpay-no-renew">
-                <span class="value">{{i18n
-                    "btcpay.billing.auto_renew_off"
-                  }}</span>
-              </div>
-            {{/if}}
-
-            {{#if this.subscription.period_end}}
+        {{#if (not this.currentUser)}}
+          <p class="btcpay-anon">{{i18n "btcpay.billing.login_required"}}</p>
+        {{else if this.loading}}
+          <p>{{i18n "btcpay.loading"}}</p>
+        {{else if this.error}}
+          <div class="btcpay-error alert alert-error">{{this.error}}</div>
+        {{else if this.subscription}}
+          <div class="btcpay-sub-card {{this.statusClass}}">
+            <div class="btcpay-sub-info">
               <div class="btcpay-sub-row">
-                <span class="label">{{i18n "btcpay.billing.period_end"}}</span>
-                <span class="value">{{this.subscription.period_end}}</span>
+                <span class="label">{{i18n "btcpay.billing.plan"}}</span>
+                <span class="value">{{this.subscription.plan_name}}</span>
               </div>
+              <div class="btcpay-sub-row">
+                <span class="label">{{i18n "btcpay.billing.status"}}</span>
+                <span class="value btcpay-badge {{this.statusClass}}">
+                  {{i18n (concat "btcpay.status." this.subscription.status)}}
+                </span>
+              </div>
+              {{#if this.inTrial}}
+                <div class="btcpay-sub-row btcpay-trial">
+                  <span class="label">{{i18n "btcpay.billing.trial"}}</span>
+                  <span class="value">
+                    {{i18n
+                      "btcpay.billing.trial_ends"
+                      date=this.subscription.trial_end
+                    }}
+                  </span>
+                </div>
+              {{/if}}
+
+              {{#if this.inGrace}}
+                <div class="btcpay-sub-row btcpay-grace">
+                  <span class="label">{{i18n "btcpay.billing.grace"}}</span>
+                  <span class="value">
+                    {{i18n
+                      "btcpay.billing.grace_ends"
+                      date=this.subscription.grace_period_end
+                    }}
+                  </span>
+                </div>
+              {{/if}}
+
+              {{#if this.subscription.needs_upgrade}}
+                <div class="btcpay-sub-row btcpay-needs-upgrade">
+                  <span class="value">{{i18n
+                      "btcpay.billing.needs_upgrade"
+                    }}</span>
+                </div>
+              {{/if}}
+
+              {{#if this.subscription.next_plan_name}}
+                <div class="btcpay-sub-row btcpay-next-plan">
+                  <span class="value">
+                    {{i18n
+                      "btcpay.billing.next_plan"
+                      plan=this.subscription.next_plan_name
+                      date=this.subscription.next_plan_at
+                    }}
+                  </span>
+                </div>
+              {{/if}}
+
+              {{#if this.showsAutoRenewOff}}
+                <div class="btcpay-sub-row btcpay-no-renew">
+                  <span class="value">{{i18n
+                      "btcpay.billing.auto_renew_off"
+                    }}</span>
+                </div>
+              {{/if}}
+
+              {{#if this.subscription.period_end}}
+                <div class="btcpay-sub-row">
+                  <span class="label">{{i18n
+                      "btcpay.billing.period_end"
+                    }}</span>
+                  <span class="value">{{this.subscription.period_end}}</span>
+                </div>
+              {{/if}}
+            </div>
+
+            {{#if this.portalUrl}}
+              <a
+                href={{this.portalUrl}}
+                class="btn btn-default btcpay-portal-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{i18n "btcpay.billing.manage"}}
+              </a>
             {{/if}}
           </div>
 
-          {{#if this.portalUrl}}
-            <a
-              href={{this.portalUrl}}
-              class="btn btn-default btcpay-portal-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {{i18n "btcpay.billing.manage"}}
-            </a>
-          {{/if}}
-        </div>
-
-        {{#if this.payments.length}}
-          <h3>{{i18n "btcpay.billing.history"}}</h3>
-          <table class="btcpay-payments-table">
-            <caption class="sr-only">{{i18n "btcpay.billing.history"}}</caption>
-            <thead>
-              <tr>
-                <th>{{i18n "btcpay.billing.col_date"}}</th>
-                <th>{{i18n "btcpay.billing.col_amount"}}</th>
-                <th>{{i18n "btcpay.billing.col_method"}}</th>
-                <th>{{i18n "btcpay.billing.col_status"}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {{#each this.payments as |payment|}}
+          {{#if this.payments.length}}
+            <h3>{{i18n "btcpay.billing.history"}}</h3>
+            <table class="btcpay-payments-table">
+              <caption class="sr-only">{{i18n
+                  "btcpay.billing.history"
+                }}</caption>
+              <thead>
                 <tr>
-                  <td>{{payment.paid_at}}</td>
-                  <td>{{payment.amount}} {{payment.currency}}</td>
-                  <td>{{payment.payment_method}}</td>
-                  <td>
-                    <span class="btcpay-badge btcpay-status-{{payment.status}}">
-                      {{payment.status}}
-                    </span>
-                  </td>
+                  <th>{{i18n "btcpay.billing.col_date"}}</th>
+                  <th>{{i18n "btcpay.billing.col_amount"}}</th>
+                  <th>{{i18n "btcpay.billing.col_method"}}</th>
+                  <th>{{i18n "btcpay.billing.col_status"}}</th>
                 </tr>
-              {{/each}}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {{#each this.payments as |payment|}}
+                  <tr>
+                    <td>{{payment.paid_at}}</td>
+                    <td>{{payment.amount}} {{payment.currency}}</td>
+                    <td>{{payment.payment_method}}</td>
+                    <td>
+                      <span
+                        class="btcpay-badge btcpay-status-{{payment.status}}"
+                      >
+                        {{payment.status}}
+                      </span>
+                    </td>
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          {{/if}}
+        {{else}}
+          <p class="btcpay-no-sub">{{i18n "btcpay.billing.none"}}</p>
         {{/if}}
-      {{else}}
-        <p class="btcpay-no-sub">{{i18n "btcpay.billing.none"}}</p>
-      {{/if}}
-    </div>
+      </div>
+    {{/if}}
   </template>
 }

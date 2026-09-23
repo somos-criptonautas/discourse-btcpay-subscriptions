@@ -47,7 +47,7 @@ acceptance("BTCPay | Tickets page", function (needs) {
     assert.dom(".btcpay-plan-option").exists({ count: 2 });
     assert.dom(".btcpay-plans").exists("plans are grouped in a fieldset");
     assert
-      .dom(".btcpay-plan-option:first-child .btcpay-plan-price")
+      .dom(".btcpay-plan-option:first-of-type .btcpay-plan-price")
       .includesText("10 USD");
   });
 
