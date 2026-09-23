@@ -40,6 +40,14 @@ export default class BtcpaySubscriptionStatus extends Component {
     }
   }
 
+  // On the checkout page there is no point announcing "no subscription"
+  get isHidden() {
+    return (
+      !this.siteSettings.btcpay_enabled ||
+      (this.args.hideWhenEmpty && !this.loading && !this.subscription)
+    );
+  }
+
   get statusClass() {
     return this.subscription ? `btcpay-status-${this.subscription.status}` : "";
   }
@@ -63,7 +71,7 @@ export default class BtcpaySubscriptionStatus extends Component {
   }
 
   <template>
-    {{#if this.siteSettings.btcpay_enabled}}
+    {{#unless this.isHidden}}
       <div class="btcpay-user-billing">
         <h2>{{i18n "btcpay.billing.section_title"}}</h2>
 
@@ -198,6 +206,6 @@ export default class BtcpaySubscriptionStatus extends Component {
           <p class="btcpay-no-sub">{{i18n "btcpay.billing.none"}}</p>
         {{/if}}
       </div>
-    {{/if}}
+    {{/unless}}
   </template>
 }

@@ -6,6 +6,6 @@ export default <template>
   <div class="btcpay-page btcpay-tickets-page">
     <BtcpayPageHeader @page="tickets" />
     <BtcpayCheckout />
-    <BtcpaySubscriptionStatus />
+    <BtcpaySubscriptionStatus @hideWhenEmpty={{true}} />
   </div>
 </template>

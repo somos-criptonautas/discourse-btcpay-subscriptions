@@ -46,6 +46,22 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
     )
   end
 
+  it "serves /tickets and /billing so a direct visit does not 404" do
+    %w[/tickets /billing].each do |path|
+      get path
+
+      expect(response.status).to eq(200)
+    end
+  end
+
+  it "404s the pages when the plugin is disabled" do
+    SiteSetting.btcpay_enabled = false
+
+    get "/tickets"
+
+    expect(response.status).to eq(404)
+  end
+
   it "requires a logged in user" do
     post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
 

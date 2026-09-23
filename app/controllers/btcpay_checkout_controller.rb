@@ -179,10 +179,11 @@ module DiscourseBtcpay
         "rewriting to #{configured.host}. Check BTCPay's server URL and your proxy headers."
       )
 
-      given.scheme = configured.scheme
-      given.host = configured.host
-      given.port = configured.port
-      given.to_s
+      rebuilt = configured.dup
+      rebuilt.path = given.path
+      rebuilt.query = given.query
+      rebuilt.fragment = given.fragment
+      rebuilt.to_s
     rescue URI::InvalidURIError
       url
     end

@@ -56,6 +56,12 @@ acceptance("BTCPay | Tickets page", function (needs) {
 
     assert.dom(".btcpay-checkout-btn").exists();
   });
+
+  test("says nothing about a subscription the user does not have", async function (assert) {
+    await visit("/tickets");
+
+    assert.dom(".btcpay-user-billing").doesNotExist();
+  });
 });
 
 acceptance("BTCPay | Tickets page with a subscription", function (needs) {

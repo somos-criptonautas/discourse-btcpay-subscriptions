@@ -230,6 +230,12 @@ WHERE plugin_name = 'discourse-btcpay-subscriptions';
 
 Each checkout sends BTCPay the payer's **Discourse user id and username**, and the plan id, as invoice and subscriber metadata. Nothing else — no email, no posts, no IP. BTCPay returns a customer id, plan and period data, and payment amounts, which are stored in the plugin store as described above. The only external host contacted is the one in `btcpay_server_url`.
 
+### Manual group membership
+
+Adding a user to a plan's group by hand grants access immediately — Discourse groups are what gate content, and the plugin never revokes a member it has no record for. The reconcile job only walks its own subscription records, so hand-granted members are left alone forever.
+
+The flip side: `/billing` shows such a user nothing, because there is no subscription behind it. Use manual membership for comps and staff; use a BTCPay plan for anything that should renew or expire on its own.
+
 ## Upgrading, disabling, removing
 
 **Upgrade:** `cd /var/discourse && ./launcher rebuild app` picks up the latest commit of the plugin, exactly like the install. There are no database migrations and no renamed settings or storage keys, so upgrades are in place and reversible by checking out an older commit and rebuilding. Check [CHANGELOG.md](CHANGELOG.md) before upgrading.

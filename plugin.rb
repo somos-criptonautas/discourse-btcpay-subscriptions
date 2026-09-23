@@ -226,6 +226,7 @@ after_initialize do
 
   require_relative "app/services/btcpay_api"
   require_relative "app/services/btcpay_subscription_manager"
+  require_relative "app/controllers/btcpay_pages_controller"
   require_relative "app/controllers/btcpay_webhook_controller"
   require_relative "app/controllers/btcpay_checkout_controller"
   require_relative "app/controllers/admin/btcpay_admin_controller"
@@ -241,6 +242,10 @@ after_initialize do
 
   Discourse::Application.routes.append do
     mount DiscourseBtcpay::Engine, at: "/btcpay"
+
+    # Server-side entry points for the two client-side pages
+    get "/tickets" => "discourse_btcpay/btcpay_pages#index"
+    get "/billing" => "discourse_btcpay/btcpay_pages#index"
 
     # JSON only. The admin page itself is an Ember route under
     # adminPlugins.show, so no HTML route may live at this prefix.

@@ -17,6 +17,10 @@ All notable changes to this plugin. Versions follow the `version:` field in
 - Settings link on the admin page.
 
 ### Fixed
+- `/tickets` and `/billing` no longer 404 when opened directly or refreshed —
+  Rails now serves the app shell for both.
+- The "no subscription" block is hidden on `/tickets` instead of announcing an
+  absence to someone who is about to buy.
 - A checkout URL that BTCPay built on the wrong host (typically `localhost`
   behind a proxy that drops Host/X-Forwarded headers) is re-pointed at
   `btcpay_server_url` instead of sending the payer nowhere.
