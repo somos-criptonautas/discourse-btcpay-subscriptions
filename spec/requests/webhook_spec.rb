@@ -53,6 +53,18 @@ describe DiscourseBtcpay::BtcpayWebhookController do
       %r{https://btcpay\.example\.com/api/v1/stores/store/offerings/off-1/subscribers/}
     ).to_return(status: 200, body: subscriber.to_json)
 
+    stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
+      .to_return(
+        status: 200,
+        body: {
+          id: "off-1",
+          plans: [
+            { id: "plan-1", name: "Premium", price: "10", currency: "USD", recurringType: "Monthly" },
+            { id: "plan-2", name: "VIP", price: "25", currency: "USD", recurringType: "Monthly" }
+          ]
+        }.to_json
+      )
+
     stub_request(:get, %r{https://btcpay\.example\.com/api/v1/stores/store/invoices/INV1$})
       .to_return(status: 200, body: { amount: "10", currency: "USD" }.to_json)
     stub_request(
