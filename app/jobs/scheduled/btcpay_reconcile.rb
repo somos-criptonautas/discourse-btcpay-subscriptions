@@ -30,16 +30,19 @@ module Jobs
       checked = 0
       fixed = 0
       failures = 0
-      seen = 0
-      last_key = nil
       cursor = PluginStore.get(DiscourseBtcpay::PLUGIN_NAME, CURSOR_KEY)
 
-      DiscourseBtcpay.each_subscription(
-        after_key: cursor,
-        limit: MAX_PER_TICK
-      ) do |user_id, local, key|
-        seen += 1
-        last_key = key
+      # One row beyond the cap tells us whether a tail remains, so a subscriber
+      # count that is an exact multiple of the cap still wraps this tick.
+      page = []
+      DiscourseBtcpay.each_subscription(after_key: cursor, limit: MAX_PER_TICK + 1) do |*row|
+        page << row
+      end
+      more = page.size > MAX_PER_TICK
+      page = page.first(MAX_PER_TICK)
+      last_key = page.last&.last
+
+      page.each do |user_id, local, _key|
         customer_id = local["customer_id"]
 
         if customer_id.blank?
@@ -67,9 +70,9 @@ module Jobs
         fixed += 1 if reconcile_one(manager, user_id, local, remote)
       end
 
-      # A short page means the tail was reached: wrap the cursor and only then
-      # count the sweep as done for this interval.
-      completed = seen < MAX_PER_TICK
+      # Wrap the cursor once no tail remains, and only then count the sweep as
+      # done for this interval.
+      completed = !more
       PluginStore.set(DiscourseBtcpay::PLUGIN_NAME, CURSOR_KEY, completed ? "" : last_key)
 
       # A tick that could not reach BTCPay at all should not consume the
