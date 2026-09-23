@@ -17,6 +17,8 @@ All notable changes to this plugin. Versions follow the `version:` field in
 - Settings link on the admin page.
 
 ### Fixed
+- A second click no longer stacks a second BTCPay checkout overlay; the button
+  is inert while a checkout is open, and the overlay is cleared on settle.
 - Checkout goes straight to the invoice: Discourse proceeds the plan checkout
   server-side, so there is no second "Subscribe" click on BTCPay and no BTCPay
   redirect that can land on localhost. A plan covered by credit activates with

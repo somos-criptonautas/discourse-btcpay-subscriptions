@@ -236,6 +236,38 @@ Adding a user to a plan's group by hand grants access immediately — Discourse 
 
 The flip side: `/billing` shows such a user nothing, because there is no subscription behind it. Use manual membership for comps and staff; use a BTCPay plan for anything that should renew or expire on its own.
 
+### BTCPay reverse proxy
+
+If checkout lands on `127.0.0.1` or `localhost`, BTCPay is generating links from the host it sees, not the public one. Two things must be right:
+
+1. **BTCPay → Server Settings → Server URL** — set to `https://btcpay.yourdomain.com`. This is what BTCPay uses for redirects and invoice links.
+2. **The proxy in front of BTCPay must forward the original host and scheme.** A proxy that omits these is the usual cause:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:23000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $http_connection;
+}
+```
+
+If you run BTCPay's own docker-compose, set `BTCPAY_HOST` to the public hostname and let its bundled nginx handle this — a second proxy in front of it needs the headers above.
+
+Check what BTCPay believes, from any machine:
+
+```bash
+curl -s -X POST https://btcpay.yourdomain.com/api/v1/plan-checkout \
+  -H "Authorization: token YOUR_API_KEY" -H "Content-Type: application/json" \
+  -d '{"storeId":"STORE","offeringId":"OFFERING","planId":"PLAN"}' | grep -o '"url":"[^"]*"'
+```
+
+If that `url` contains `127.0.0.1`, the problem is entirely in BTCPay's configuration — Discourse only passes the payer along.
+
 ## Upgrading, disabling, removing
 
 **Upgrade:** `cd /var/discourse && ./launcher rebuild app` picks up the latest commit of the plugin, exactly like the install. There are no database migrations and no renamed settings or storage keys, so upgrades are in place and reversible by checking out an older commit and rebuilding. Check [CHANGELOG.md](CHANGELOG.md) before upgrading.

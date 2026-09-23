@@ -219,6 +219,38 @@ Añadir a mano un usuario al grupo de un plan concede el acceso de inmediato —
 
 La contrapartida: `/billing` no le mostrará nada a ese usuario, porque no hay suscripción detrás. Usa la membresía manual para invitaciones y staff; usa un plan de BTCPay para todo lo que deba renovarse o caducar solo.
 
+### Proxy inverso de BTCPay
+
+Si el checkout acaba en `127.0.0.1` o `localhost`, BTCPay está generando los enlaces con el host que ve, no con el público. Dos cosas deben estar bien:
+
+1. **BTCPay → Server Settings → Server URL** — ponlo como `https://btcpay.tudominio.com`. Es lo que BTCPay usa para redirecciones y enlaces de facturas.
+2. **El proxy delante de BTCPay debe reenviar el host y el esquema originales.** Omitirlos es la causa habitual:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:23000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $http_connection;
+}
+```
+
+Si usas el docker-compose de BTCPay, define `BTCPAY_HOST` con el nombre público y deja que su nginx interno lo gestione — un segundo proxy por delante necesita las cabeceras de arriba.
+
+Comprueba qué cree BTCPay, desde cualquier máquina:
+
+```bash
+curl -s -X POST https://btcpay.tudominio.com/api/v1/plan-checkout \
+  -H "Authorization: token TU_API_KEY" -H "Content-Type: application/json" \
+  -d '{"storeId":"STORE","offeringId":"OFFERING","planId":"PLAN"}' | grep -o '"url":"[^"]*"'
+```
+
+Si esa `url` contiene `127.0.0.1`, el problema está por completo en la configuración de BTCPay — Discourse solo lleva al pagador hasta allí.
+
 ## Actualizar, desactivar, desinstalar
 
 **Actualizar:** `cd /var/discourse && ./launcher rebuild app` toma el último commit del plugin, igual que la instalación. No hay migraciones de base de datos ni ajustes o claves de almacenamiento renombrados, así que la actualización es en sitio y reversible volviendo a un commit anterior y reconstruyendo. Revisa [CHANGELOG.md](CHANGELOG.md) antes de actualizar.

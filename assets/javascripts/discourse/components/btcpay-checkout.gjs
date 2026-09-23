@@ -36,6 +36,15 @@ function loadModalScript(url) {
   return modalScript;
 }
 
+// btcpay.js exposes no stable close API across versions, so hide whatever it
+// left behind before opening another one.
+function closeModal() {
+  window.btcpay?.hideFrame?.();
+  document
+    .querySelectorAll(".btcpay-modal, #btcpay, iframe[src*='/modal/']")
+    .forEach((el) => el.remove());
+}
+
 export default class BtcpayCheckout extends Component {
   @service siteSettings;
   @service currentUser;
@@ -51,6 +60,7 @@ export default class BtcpayCheckout extends Component {
 
   pollTimer = null;
   pollCount = 0;
+  modalOpen = false;
 
   constructor() {
     super(...arguments);
@@ -62,6 +72,10 @@ export default class BtcpayCheckout extends Component {
   willDestroy() {
     super.willDestroy(...arguments);
     this.stopPolling();
+    if (this.modalOpen) {
+      closeModal();
+      this.modalOpen = false;
+    }
   }
 
   get isVisible() {
@@ -141,7 +155,9 @@ export default class BtcpayCheckout extends Component {
 
   @action
   async checkout() {
-    if (!this.selectedPlan) {
+    // Guard the click itself: loading covers the request, modalOpen covers a
+    // checkout already on screen.
+    if (!this.selectedPlan || this.loading || this.modalOpen) {
       return;
     }
 
@@ -187,7 +203,12 @@ export default class BtcpayCheckout extends Component {
       if (!window.btcpay?.showInvoice) {
         return false;
       }
+
+      // showInvoice appends a fresh overlay every call, so a second click
+      // would stack a second BTCPay checkout on top of the first.
+      closeModal();
       window.btcpay.showInvoice(result.invoice_id);
+      this.modalOpen = true;
       this.startPolling();
       return true;
     } catch {
@@ -224,6 +245,10 @@ export default class BtcpayCheckout extends Component {
         this.progress = null;
         this.currentPlanId = result.subscription.plan_id;
         this.stopPolling();
+        if (this.modalOpen) {
+          closeModal();
+          this.modalOpen = false;
+        }
         this.args.onSettled?.();
       }
     } catch {
