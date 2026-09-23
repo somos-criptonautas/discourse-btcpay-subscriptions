@@ -119,6 +119,57 @@ after_initialize do
       plan&.dig("name").presence || plan_id
     end
 
+    # Some facts reach us twice — BTCPay fires both InvoiceExpired and
+    # InvoiceExpiredPaidPartial for one underpaid invoice — so alerts are
+    # deduplicated by a key rather than sent per delivery.
+    def self.first_alert?(key)
+      seen = ::PluginStore.get(PLUGIN_NAME, "alerts") || []
+      return false if seen.include?(key)
+
+      ::PluginStore.set(PLUGIN_NAME, "alerts", (seen << key).last(500))
+      true
+    end
+
+    # Live payment progress for the invoice a user is currently paying.
+    # Short-lived: cleared once the invoice settles, expires or goes invalid.
+    def self.store_payment_progress(user_id, progress)
+      ::PluginStore.set(PLUGIN_NAME, "progress:#{user_id}", progress)
+    end
+
+    def self.get_payment_progress(user_id)
+      ::PluginStore.get(PLUGIN_NAME, "progress:#{user_id}")
+    end
+
+    def self.clear_payment_progress(user_id)
+      ::PluginStore.remove(PLUGIN_NAME, "progress:#{user_id}")
+    end
+
+    # One place that knows how subscription rows are stored, so the webhook,
+    # the reconcile job and the admin list stop re-deriving it.
+    # Ordered by key so a caller can resume from where it stopped.
+    def self.each_subscription(after_key: nil, limit: nil)
+      return enum_for(:each_subscription, after_key: after_key, limit: limit) unless block_given?
+
+      scope = ::PluginStoreRow.where(plugin_name: PLUGIN_NAME).where("key LIKE ?", "sub:%")
+      scope = scope.where("key > ?", after_key) if after_key.present?
+
+      rows = limit ? scope.order(:key).limit(limit) : scope.order(:key)
+
+      rows.each do |row|
+        data = JSON.parse(row.value) rescue next
+        yield row.key.sub("sub:", "").to_i, data, row.key
+      end
+    end
+
+    def self.user_id_for_customer(customer_id)
+      return nil if customer_id.blank?
+
+      each_subscription do |user_id, data, _key|
+        return user_id if data["customer_id"] == customer_id
+      end
+      nil
+    end
+
     def self.processed_invoice?(invoice_id)
       processed = ::PluginStore.get(PLUGIN_NAME, "processed_invoices") || []
       processed.include?(invoice_id)
