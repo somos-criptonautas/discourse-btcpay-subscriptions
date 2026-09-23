@@ -40,14 +40,6 @@ after_initialize do
       ::PluginStore.get(PLUGIN_NAME, "payments:#{user_id}") || []
     end
 
-    def self.store_plans(plans)
-      ::PluginStore.set(PLUGIN_NAME, "plans", plans)
-    end
-
-    def self.get_plans
-      ::PluginStore.get(PLUGIN_NAME, "plans") || []
-    end
-
     PLANS_CACHE_TTL = 10.minutes
 
     # The offering is the catalogue: plans are read from BTCPay, not typed in

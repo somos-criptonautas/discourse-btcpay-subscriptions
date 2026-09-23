@@ -241,6 +241,19 @@ Los registros de un **usuario eliminado** se borran automáticamente cuando Disc
 
 **La página de admin dice "no está configurado del todo":** ahora enumera los ajustes que siguen vacíos. `btcpay_offering_id` es el que más se olvida — se añadió después de la primera versión. Si están todos rellenos y sigue quejándose, la página muestra el error de BTCPay: revisa `btcpay_server_url` y que la clave API tenga `canviewofferings`.
 
+**El checkout me lleva a localhost:** BTCPay construyó la URL con el host que cree tener. El plugin la reescribe hacia `btcpay_server_url` y deja un aviso en los logs, así que el pago funciona igualmente — pero corrige la causa en BTCPay:
+
+- **BTCPay → Server Settings → Server URL** debe ser la URL pública HTTPS, no `localhost`.
+- El proxy inverso delante de BTCPay debe reenviar el host y el esquema originales:
+
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+Si lo que cae en localhost es el **retorno** tras pagar, entonces es el `DISCOURSE_HOSTNAME` (o `force_https`) de tu Discourse: ese enlace se construye con `Discourse.base_url`.
+
 **Sincronización manual:** Admin → Plugins → BTCPay → botón "Sincronizar con BTCPay" (ignora el intervalo).
 
 **Red equivocada:** la página de admin muestra la red que reporta BTCPay (mainnet / testnet) junto a la URL del servidor y la altura de la cadena. Se deduce de la punta de la cadena; "red desconocida" significa que BTCPay no devolvió estado de sincronización.

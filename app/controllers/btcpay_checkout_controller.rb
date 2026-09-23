@@ -47,7 +47,7 @@ module DiscourseBtcpay
           on_pay_behavior: change == :upgrade ? "HardMigration" : nil
         )
 
-      checkout_url = result["url"] || result["redirectUrl"]
+      checkout_url = public_checkout_url(result["url"] || result["redirectUrl"])
 
       unless checkout_url
         Rails.logger.error("DiscourseBtcpay: No checkout URL returned: #{result.inspect}")
@@ -161,6 +161,30 @@ module DiscourseBtcpay
         render json: { error: I18n.t("discourse_btcpay.errors.missing_config") },
                status: :service_unavailable
       end
+    end
+
+    # BTCPay builds these URLs from whatever host it thinks it is reachable at.
+    # Behind a reverse proxy that does not forward Host/X-Forwarded-*, that is
+    # "localhost", which is useless to the payer — so re-point the URL at the
+    # configured server while keeping its path.
+    def public_checkout_url(url)
+      return url if url.blank?
+
+      configured = URI.parse(SiteSetting.btcpay_server_url.chomp("/"))
+      given = URI.parse(url)
+      return url if given.host.blank? || given.host == configured.host
+
+      Rails.logger.warn(
+        "DiscourseBtcpay: BTCPay returned a checkout URL on #{given.host}; " \
+        "rewriting to #{configured.host}. Check BTCPay's server URL and your proxy headers."
+      )
+
+      given.scheme = configured.scheme
+      given.host = configured.host
+      given.port = configured.port
+      given.to_s
+    rescue URI::InvalidURIError
+      url
     end
 
     # A real portal session, not a guessed URL

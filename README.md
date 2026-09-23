@@ -258,6 +258,19 @@ Records belonging to a **deleted user** are removed automatically when Discourse
 
 **Admin page says "not fully configured":** it now lists the settings that are still blank. `btcpay_offering_id` is the one most often missed — it was added after the first release. If every setting is filled and it still complains, the page shows the BTCPay error instead: check `btcpay_server_url` and that the API key carries `canviewofferings`.
 
+**Checkout sends me to localhost:** BTCPay built the checkout URL from the host it believes it runs on. The plugin rewrites that URL to `btcpay_server_url` and logs a warning, so checkout still works — but fix the root cause in BTCPay:
+
+- **BTCPay → Server Settings → Server URL** must be the public HTTPS URL, not `localhost`.
+- The reverse proxy in front of BTCPay must forward the original host and scheme:
+
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+If the **return** link after paying lands on localhost instead, that is Discourse's own `DISCOURSE_HOSTNAME` (or `force_https`) being wrong — the redirect is built from `Discourse.base_url`.
+
 **Manual sync:** Admin → Plugins → BTCPay → "Sync with BTCPay" button (bypasses the interval).
 
 **Wrong network:** the admin page shows a network label next to the server URL and chain height. BTCPay's API exposes no network field, so the label is **inferred from the chain tip** of BTC (or the first chain the server reports) — treat it as a sanity check, not an authority. "unknown" means BTCPay returned no sync status.

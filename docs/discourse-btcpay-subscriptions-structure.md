@@ -42,7 +42,7 @@ discourse-btcpay-subscriptions/
 ├── spec/
 │   ├── requests/{webhook,checkout}_spec.rb
 │   ├── jobs/btcpay_reconcile_spec.rb
-│   └── services/plan_mappings_spec.rb
+│   └── services/plan_groups_spec.rb
 │
 ├── docs/                              # Design notes + React checkout mockup
 └── README.md

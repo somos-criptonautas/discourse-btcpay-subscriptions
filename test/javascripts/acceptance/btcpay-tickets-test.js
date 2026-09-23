@@ -44,11 +44,11 @@ acceptance("BTCPay | Tickets page", function (needs) {
   test("lists every plan the offering returned", async function (assert) {
     await visit("/tickets");
 
-    assert.dom(".btcpay-plan-option").exists({ count: 2 });
+    assert.dom(".btcpay-plan").exists({ count: 2 });
     assert.dom(".btcpay-plans").exists("plans are grouped in a fieldset");
     assert
-      .dom(".btcpay-plan-option:first-of-type .btcpay-plan-price")
-      .includesText("10 USD");
+      .dom(".btcpay-plan:first-of-type .btcpay-plan__amount")
+      .hasText("10 USD");
   });
 
   test("shows the checkout button", async function (assert) {
@@ -82,11 +82,11 @@ acceptance("BTCPay | Tickets page with a subscription", function (needs) {
   test("marks the current plan and blocks the cheaper one", async function (assert) {
     await visit("/tickets");
 
-    assert.dom(".btcpay-plan-option.current").exists({ count: 1 });
+    assert.dom(".btcpay-plan.is-current").exists({ count: 1 });
     assert
-      .dom(".btcpay-plan-option.blocked .btcpay-plan-badge.blocked")
+      .dom(".btcpay-plan.is-blocked .btcpay-plan__note")
       .exists("a downgrade is shown but not selectable");
-    assert.dom(".btcpay-plan-option.blocked input").isDisabled();
+    assert.dom(".btcpay-plan.is-blocked .btcpay-plan__radio").isDisabled();
   });
 });
 

@@ -16,7 +16,13 @@ All notable changes to this plugin. Versions follow the `version:` field in
   and flags plans that map to nothing or to a group that does not exist.
 - Settings link on the admin page.
 
+### Fixed
+- A checkout URL that BTCPay built on the wrong host (typically `localhost`
+  behind a proxy that drops Host/X-Forwarded headers) is re-pointed at
+  `btcpay_server_url` instead of sending the payer nowhere.
+
 ### Changed
+- Plan picker restyled as selectable cards using core Discourse tokens.
 - The reconcile job processes at most 200 subscribers per tick and resumes from
   a stored cursor, so a large site or a slow BTCPay cannot hold a worker.
 - Credit-based payment records key off BTCPay's delivery id instead of the

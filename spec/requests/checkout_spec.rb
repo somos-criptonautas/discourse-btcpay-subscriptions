@@ -92,6 +92,30 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       )
     end
 
+    it "re-points a localhost checkout URL at the configured BTCPay host" do
+      stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout").to_return(
+        status: 200,
+        body: checkout_response.merge(url: "http://localhost:23000/i/INV9").to_json
+      )
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(response.parsed_body["checkout_url"]).to eq(
+        "https://btcpay.example.com/i/INV9"
+      )
+    end
+
+    it "leaves a correct checkout URL alone" do
+      stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
+        .to_return(status: 200, body: checkout_response.to_json)
+
+      post "/btcpay/checkout.json", params: { plan_id: "plan-1" }
+
+      expect(response.parsed_body["checkout_url"]).to eq(
+        "https://btcpay.example.com/i/INV9"
+      )
+    end
+
     it "remembers the BTCPay customer id for later lookups" do
       stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
         .to_return(status: 200, body: checkout_response.to_json)

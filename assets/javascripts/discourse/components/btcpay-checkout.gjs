@@ -259,57 +259,85 @@ export default class BtcpayCheckout extends Component {
 
         {{#if this.offers.length}}
           <fieldset class="btcpay-plans">
-            <legend class="btcpay-plans-legend">
+            <legend class="btcpay-plans__legend">
               {{i18n "btcpay.checkout.choose_plan"}}
             </legend>
+
             {{#each this.offers as |plan|}}
               <label
-                class="btcpay-plan-option
-                  {{if (eq this.selectedPlan plan.plan_id) 'selected'}}
-                  {{if plan.isCurrent 'current'}}
-                  {{if plan.isBlocked 'blocked'}}"
+                class="btcpay-plan
+                  {{if (eq this.selectedPlan plan.plan_id) 'is-selected'}}
+                  {{if plan.isCurrent 'is-current'}}
+                  {{if plan.isBlocked 'is-blocked'}}"
               >
                 <input
                   type="radio"
+                  class="btcpay-plan__radio"
                   name="btcpay_plan"
                   value={{plan.plan_id}}
                   checked={{eq this.selectedPlan plan.plan_id}}
                   disabled={{or plan.isCurrent plan.isBlocked}}
                   {{on "change" (fn this.selectPlan plan.plan_id)}}
                 />
-                <span class="btcpay-plan-label">{{plan.label}}</span>
-                {{#if plan.price}}
-                  <span class="btcpay-plan-price">
-                    {{plan.price}}
-                    {{plan.currency}}
-                    {{#if plan.interval}}/ {{plan.interval}}{{/if}}
+
+                <span class="btcpay-plan__body">
+                  <span class="btcpay-plan__header">
+                    <span class="btcpay-plan__name">{{plan.label}}</span>
+
+                    {{#if plan.isCurrent}}
+                      <span class="btcpay-plan__badge --current">
+                        {{i18n "btcpay.checkout.current_plan"}}
+                      </span>
+                    {{else if plan.isUpgrade}}
+                      <span class="btcpay-plan__badge --upgrade">
+                        {{i18n "btcpay.checkout.upgrade"}}
+                      </span>
+                    {{/if}}
                   </span>
-                {{/if}}
-                {{#if plan.trial_days}}
-                  <span class="btcpay-plan-trial">
-                    {{i18n "btcpay.checkout.trial_days" count=plan.trial_days}}
-                  </span>
-                {{/if}}
-                {{#if plan.isCurrent}}
-                  <span class="btcpay-plan-badge current">
-                    {{i18n "btcpay.checkout.current_plan"}}
-                  </span>
-                {{else if plan.isUpgrade}}
-                  <span class="btcpay-plan-badge upgrade">
-                    {{i18n "btcpay.checkout.upgrade"}}
-                  </span>
-                {{else if plan.isBlocked}}
-                  <span class="btcpay-plan-badge blocked">
-                    {{i18n "btcpay.checkout.downgrade_unavailable"}}
-                  </span>
-                {{/if}}
+
+                  {{#if plan.price}}
+                    <span class="btcpay-plan__price">
+                      <span class="btcpay-plan__amount">
+                        {{plan.price}}
+                        {{plan.currency}}
+                      </span>
+                      {{#if plan.interval}}
+                        <span class="btcpay-plan__interval">
+                          /
+                          {{plan.interval}}
+                        </span>
+                      {{/if}}
+                    </span>
+                  {{/if}}
+
+                  {{#if plan.description}}
+                    <span class="btcpay-plan__description">
+                      {{plan.description}}
+                    </span>
+                  {{/if}}
+
+                  {{#if plan.trial_days}}
+                    <span class="btcpay-plan__trial">
+                      {{i18n
+                        "btcpay.checkout.trial_days"
+                        count=plan.trial_days
+                      }}
+                    </span>
+                  {{/if}}
+
+                  {{#if plan.isBlocked}}
+                    <span class="btcpay-plan__note">
+                      {{i18n "btcpay.checkout.downgrade_unavailable"}}
+                    </span>
+                  {{/if}}
+                </span>
               </label>
             {{/each}}
           </fieldset>
 
           <button
             type="button"
-            class="btn btn-primary btcpay-checkout-btn"
+            class="btn btn-primary btn-large btcpay-checkout-btn"
             disabled={{or this.loading (not this.selectedPlan)}}
             {{on "click" this.checkout}}
           >
