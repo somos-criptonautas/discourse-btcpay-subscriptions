@@ -79,21 +79,16 @@ Go to **Admin → Settings** and search for `btcpay`:
 | `btcpay_store_id` | Your BTCPay Store ID |
 | `btcpay_offering_id` | The Offering ID holding your plans |
 | `btcpay_webhook_secret` | The secret from step 7 above |
-| `btcpay_plan_mappings` | See below |
+| `btcpay_default_group` | Optional: one group for all plans |
 | `btcpay_button_label` | blank (uses the translation) |
 
-**Plan mappings** — one JSON array, all plans in it:
+**Plans need no configuration.** Every plan in the offering is fetched from BTCPay with its live price, and each one grants a Discourse group resolved in this order:
 
-```json
-[
-  {"plan_id":"BTCPAY_PLAN_ID","group_name":"premium","label":"Premium Monthly"},
-  {"plan_id":"OTHER_PLAN_ID","group_name":"vip","label":"VIP Yearly"}
-]
-```
+1. **The group you pick on Admin → Plugins → BTCPay** — each plan row has a group dropdown.
+2. **`discourse_group` in the plan's own BTCPay metadata** — set it on the plan in BTCPay and Discourse needs no configuration at all.
+3. **`btcpay_default_group`** — one group for every plan that has none of its own, which is all a single-tier forum needs.
 
-Invalid JSON is logged and treated as "no plans" — the checkout page will say no plans are available.
-
-The `group_name` must match an existing Discourse group. Create the group first in **Admin → Groups**.
+A plan that resolves to no group is listed on the admin page with a warning and is not offered for sale.
 
 ### Customising the text
 
@@ -295,7 +290,7 @@ Testnet sync takes a few hours; regtest is instant but you mine your own blocks.
 ### 2. Set up the store
 
 1. Store → Wallets → BTC → connect an existing wallet with a **tpub** (testnet xpub) or let BTCPay generate one. Save the seed.
-2. Store → Subscriptions → create an Offering and a Plan priced in **USD** (e.g. 10 USD / month). Copy the Offering ID into `btcpay_offering_id` and each Plan ID into `btcpay_plan_mappings`. BTCPay converts USD to crypto at checkout using its rate provider — Discourse only ever shows the USD figure.
+2. Store → Subscriptions → create an Offering and a Plan priced in **USD** (e.g. 10 USD / month). Copy the Offering ID into `btcpay_offering_id` — the plans themselves are fetched automatically. BTCPay converts USD to crypto at checkout using its rate provider — Discourse only ever shows the USD figure.
 3. Account → API Keys → create a key with `canviewofferings`, `canmanagesubscribers`, `canviewinvoices` and `canviewstoresettings`.
 
 ### 3. Point Discourse at it

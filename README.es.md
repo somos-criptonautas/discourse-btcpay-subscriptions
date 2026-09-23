@@ -79,22 +79,17 @@ Ve a **Admin → Ajustes** y busca `btcpay`:
 | `btcpay_store_id` | El ID de tu tienda de BTCPay |
 | `btcpay_offering_id` | El ID de la oferta que contiene tus planes |
 | `btcpay_webhook_secret` | El secreto del paso 7 |
-| `btcpay_plan_mappings` | Ver abajo |
+| `btcpay_default_group` | Opcional: un grupo para todos los planes |
 | `btcpay_button_label` | vacío (usa la traducción) |
 | `btcpay_reconcile_interval_hours` | `4` |
 
-**Correspondencia de planes** — un único array JSON con todos los planes:
+**Los planes no necesitan configuración.** Todos los planes de la oferta se obtienen de BTCPay con su precio en vivo, y cada uno concede un grupo de Discourse resuelto en este orden:
 
-```json
-[
-  {"plan_id":"ID_DEL_PLAN","group_name":"premium","label":"Premium Mensual"},
-  {"plan_id":"OTRO_ID","group_name":"vip","label":"VIP Anual"}
-]
-```
+1. **El grupo que elijas en Admin → Plugins → BTCPay** — cada fila de plan tiene un desplegable de grupos.
+2. **`discourse_group` en los metadatos del plan en BTCPay** — defínelo en el plan y Discourse no necesita configuración alguna.
+3. **`btcpay_default_group`** — un grupo para todos los planes que no tengan uno propio, que es todo lo que necesita un foro de un solo nivel.
 
-Si el JSON no es válido se registra el error y se trata como "sin planes": la página de pago dirá que no hay planes disponibles.
-
-El `group_name` debe coincidir con un grupo existente de Discourse. Créalo antes en **Admin → Grupos**.
+Un plan que no resuelva a ningún grupo aparece con un aviso en la página de admin y no se pone a la venta.
 
 ### Personalizar los textos
 
@@ -278,7 +273,7 @@ Sincronizar testnet tarda unas horas; regtest es instantáneo pero minas tú los
 ### 2. Configura la tienda
 
 1. Tienda → Carteras → BTC → conecta una cartera con **tpub** (xpub de testnet) o deja que BTCPay genere una. Guarda la semilla.
-2. Tienda → Suscripciones → crea una Oferta y un Plan con precio en **USD** (por ejemplo 10 USD/mes). Copia el Offering ID en `btcpay_offering_id` y cada Plan ID en `btcpay_plan_mappings`. BTCPay convierte de USD a cripto en el checkout con su proveedor de tasas — Discourse solo muestra la cifra en USD.
+2. Tienda → Suscripciones → crea una Oferta y un Plan con precio en **USD** (por ejemplo 10 USD/mes). Copia el Offering ID en `btcpay_offering_id` — los planes se obtienen automáticamente. BTCPay convierte de USD a cripto en el checkout con su proveedor de tasas — Discourse solo muestra la cifra en USD.
 3. Cuenta → Claves API → crea una clave con `canviewofferings`, `canmanagesubscribers`, `canviewinvoices` y `canviewstoresettings`.
 
 ### 3. Apunta Discourse al servidor

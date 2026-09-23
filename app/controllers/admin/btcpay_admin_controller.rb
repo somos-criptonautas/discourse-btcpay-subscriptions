@@ -48,7 +48,9 @@ module DiscourseBtcpay
           chain_height: chain && chain["chainHeight"],
           network: network_from_height(chain && chain["chainHeight"]),
           cryptos: sync.filter_map { |s| s["cryptoCode"] }.uniq,
-          plans: offering_plans
+          plans: offering_plans,
+          groups: assignable_groups,
+          default_group: SiteSetting.btcpay_default_group
         }
       end
 
@@ -78,6 +80,22 @@ module DiscourseBtcpay
         }
       end
 
+      # POST /admin/plugins/btcpay/plan_group
+      # Body: { plan_id: "...", group_name: "premium" } — blank clears it
+      def plan_group
+        plan_id = params.require(:plan_id)
+        group_name = params[:group_name].presence
+
+        if group_name && !Group.exists?(name: group_name)
+          return render json: { error: I18n.t("discourse_btcpay.errors.group_not_found") },
+                        status: :unprocessable_entity
+        end
+
+        DiscourseBtcpay.set_plan_group(plan_id, group_name)
+
+        render json: { plan_id: plan_id, group_name: group_name }
+      end
+
       # POST /admin/plugins/btcpay/sync
       # Manual trigger for reconciliation
       def sync
@@ -102,17 +120,16 @@ module DiscourseBtcpay
             interval: plan["recurringType"],
             group_name: group_name,
             group_exists: group_name.present? && Group.exists?(name: group_name),
-            source: group_source(plan_id, plan)
+            assigned_group: DiscourseBtcpay.plan_groups[plan_id],
+            source: DiscourseBtcpay.group_source(plan_id, plan: plan)
           }
         end
       end
 
-      def group_source(plan_id, plan)
-        mapped = DiscourseBtcpay.plan_mappings.find { |m| m["plan_id"] == plan_id }
-        return "setting" if mapped && mapped["group_name"].present?
-        return "btcpay" if plan.dig("metadata", "discourse_group").present?
-
-        nil
+      # Groups an admin can hand out — automatic ones (trust levels, staff)
+      # are not ours to grant.
+      def assignable_groups
+        Group.where(automatic: false).order(:name).pluck(:name)
       end
 
       # ponytail: Greenfield exposes no network field, so we read it off the

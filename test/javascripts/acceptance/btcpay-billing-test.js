@@ -41,6 +41,9 @@ acceptance("BTCPay | Billing page", function (needs) {
     assert.dom(".btcpay-sub-card").hasClass("btcpay-status-active");
     assert.dom(".btcpay-payments-table tbody tr").exists({ count: 1 });
     assert.dom(".btcpay-payments-table tbody td:nth-child(3)").hasText("XMR");
+    assert
+      .dom(".btcpay-payments-table tbody td:nth-child(4)")
+      .hasText("settled", "payment status is translated, not raw");
     assert.dom(".btcpay-portal-link").hasAttribute("target", "_blank");
   });
 });

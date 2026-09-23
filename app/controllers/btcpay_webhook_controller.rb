@@ -207,9 +207,7 @@ module DiscourseBtcpay
       end
 
       if event["overPaid"] && DiscourseBtcpay.first_alert?("over:#{invoice_id}")
-        DiscourseBtcpay.notify_admin("Invoice Overpaid",
-          "Invoice #{invoice_id} received more than the amount due. " \
-          "BTCPay can refund the difference from the invoice page.")
+        DiscourseBtcpay.notify_admin(:overpaid, invoice_id: invoice_id)
       end
 
       existing = DiscourseBtcpay.get_subscription(user_id)
@@ -358,9 +356,7 @@ module DiscourseBtcpay
       end
 
       user = User.find_by(id: user_id)
-      DiscourseBtcpay.notify_admin("Subscriber Needs Upgrade",
-        "BTCPay reports that '#{user&.username || user_id}' needs to upgrade their plan. " \
-        "Group access was left untouched.")
+      DiscourseBtcpay.notify_admin(:needs_upgrade, username: user&.username || user_id)
     end
 
     # An invoice that was never paid in time. Only a pending record is
@@ -405,9 +401,11 @@ module DiscourseBtcpay
       return unless DiscourseBtcpay.first_alert?("late:#{invoice_id}")
 
       user = User.find_by(id: user_id)
-      DiscourseBtcpay.notify_admin("Invoice Paid Late",
-        "Invoice #{invoice_id} for '#{user&.username || user_id}' was paid after it expired. " \
-        "No access was granted — mark the invoice settled in BTCPay to honour it, or refund it.")
+      DiscourseBtcpay.notify_admin(
+        :paid_late,
+        invoice_id: invoice_id,
+        username: user&.username || user_id
+      )
     end
 
     # A refund was created against the invoice (BTCPay opens a pull payment).
@@ -418,10 +416,12 @@ module DiscourseBtcpay
       return unless DiscourseBtcpay.first_alert?("refund:#{invoice_id}")
 
       user = User.find_by(id: user_id)
-      DiscourseBtcpay.notify_admin("Invoice Refunded",
-        "A refund was created for invoice #{invoice_id} ('#{user&.username || user_id}', " \
-        "pull payment #{event["pullPaymentId"] || "n/a"}). Group access was left untouched — " \
-        "remove it by hand if the refund is final.")
+      DiscourseBtcpay.notify_admin(
+        :refunded,
+        invoice_id: invoice_id,
+        username: user&.username || user_id,
+        pull_payment_id: event["pullPaymentId"] || "n/a"
+      )
     end
 
     # Credit events carry no invoice, so the delivery identifies them.
@@ -443,10 +443,12 @@ module DiscourseBtcpay
       received = Array(progress && progress["payments"]).map { |p| p["value"] }.compact.join(", ")
       user = User.find_by(id: user_id)
 
-      DiscourseBtcpay.notify_admin("Invoice Underpaid",
-        "Invoice #{invoice_id} for '#{user&.username || user_id}' expired after receiving only " \
-        "#{received.presence || "a partial payment"}. No access was granted — refund or top up " \
-        "the invoice from BTCPay.")
+      DiscourseBtcpay.notify_admin(
+        :underpaid,
+        invoice_id: invoice_id,
+        username: user&.username || user_id,
+        received: received.presence || I18n.t("discourse_btcpay.alerts.underpaid.partial")
+      )
     end
 
     def handle_invoice_invalid(event)

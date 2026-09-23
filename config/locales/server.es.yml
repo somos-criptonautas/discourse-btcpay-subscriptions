@@ -6,7 +6,7 @@ es:
     btcpay_store_id: "ID de la tienda de BTCPay"
     btcpay_offering_id: "ID de la oferta de BTCPay (contiene los planes)"
     btcpay_webhook_secret: "Secreto HMAC del webhook de BTCPay"
-    btcpay_plan_mappings: "Correspondencia plan → grupo (array JSON)"
+    btcpay_default_group: "Grupo por defecto para los planes que no tengan uno propio"
     btcpay_button_label: "Texto del botón de pago (vacío = traducción por defecto)"
     btcpay_tickets_title: "Título de /tickets (vacío = traducción por defecto)"
     btcpay_tickets_intro: "Introducción de /tickets (vacío = traducción por defecto)"
@@ -27,6 +27,69 @@ es:
         Este es un mensaje automático del plugin de suscripciones BTCPay.
 
   discourse_btcpay:
+    alerts:
+      hmac_failures:
+        subject: "BTCPay: fallan las firmas del webhook"
+        body: |
+          Se han detectado %{count} fallos de HMAC consecutivos.
+
+          Comprueba que el secreto del webhook coincide entre BTCPay y el ajuste
+          `btcpay_webhook_secret`. Hasta que coincida, ningún pago podrá conceder
+          acceso.
+      plan_unmapped:
+        subject: "BTCPay: el plan no tiene grupo"
+        body: |
+          Se ha liquidado un pago del plan '%{plan_id}' (usuario %{username})
+          pero ese plan no concede ningún grupo de Discourse.
+
+          Asigna uno en Admin → Plugins → BTCPay, define `discourse_group` en los
+          metadatos del plan en BTCPay, o configura un grupo por defecto.
+      group_missing:
+        subject: "BTCPay: el grupo no existe"
+        body: |
+          Se intentó añadir a '%{username}' al grupo '%{group}', que no existe.
+          Créalo y usa el botón de sincronizar para conceder el acceso.
+      dispute:
+        subject: "BTCPay: factura en disputa"
+        body: |
+          La factura %{invoice_id} fue invalidada o reembolsada para '%{username}'.
+
+          %{detail}
+        retained: "Se ha mantenido el acceso al grupo, a la espera de tu revisión."
+        no_record: "No existe ningún registro local de suscripción para este usuario — no se concedió nada."
+      overpaid:
+        subject: "BTCPay: factura pagada de más"
+        body: |
+          La factura %{invoice_id} recibió más del importe debido. Puedes devolver
+          la diferencia desde la página de la factura en BTCPay.
+      needs_upgrade:
+        subject: "BTCPay: el suscriptor necesita otro plan"
+        body: |
+          BTCPay indica que '%{username}' necesita mejorar su plan. No se ha
+          tocado el acceso al grupo.
+      paid_late:
+        subject: "BTCPay: factura pagada tarde"
+        body: |
+          La factura %{invoice_id} de '%{username}' se pagó después de vencer, así
+          que BTCPay no concedió nada y el dinero está sin reclamar.
+
+          Márcala como liquidada en BTCPay para respetarla, o devuélvela.
+      underpaid:
+        subject: "BTCPay: factura pagada de menos"
+        body: |
+          La factura %{invoice_id} de '%{username}' venció tras recibir solo
+          %{received}. No se concedió acceso.
+
+          Devuelve el importe o complétalo desde BTCPay.
+        partial: "un pago parcial"
+      refunded:
+        subject: "BTCPay: reembolso creado"
+        body: |
+          Se ha creado un reembolso para la factura %{invoice_id} ('%{username}',
+          pull payment %{pull_payment_id}).
+
+          No se ha tocado el acceso al grupo — retíralo a mano si el reembolso es
+          definitivo.
     errors:
       not_enabled: "La integración con BTCPay no está activada."
       missing_config: "BTCPay Server no está configurado por completo."

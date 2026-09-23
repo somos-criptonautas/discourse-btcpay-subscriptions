@@ -9,6 +9,10 @@ es:
     btcpay:
       loading: "Cargando…"
 
+      payment_status:
+        settled: "liquidado"
+        credited: "abonado"
+        pending: "pendiente"
       status:
         all: "Total"
         active: "Activa"
@@ -80,6 +84,11 @@ es:
         plans_caption: "Planes de esta oferta"
         subscriptions_caption: "Suscriptores"
         plan_unmapped: "sin grupo — añádelo en los ajustes o en los metadatos del plan en BTCPay"
+        group_inherit: "Heredar (metadatos de BTCPay o grupo por defecto)"
+        source_admin: "definido aquí → %{group}"
+        source_btcpay: "desde los metadatos de BTCPay → %{group}"
+        source_default: "grupo por defecto → %{group}"
+        source_none: "%{group}"
         group_missing: "el grupo no existe"
         col_user: "Usuario"
         col_plan: "Plan"

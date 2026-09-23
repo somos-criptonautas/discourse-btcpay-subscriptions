@@ -9,6 +9,10 @@ en:
     btcpay:
       loading: "Loading…"
 
+      payment_status:
+        settled: "settled"
+        credited: "credited"
+        pending: "pending"
       status:
         all: "Total"
         active: "Active"
@@ -80,6 +84,11 @@ en:
         plans_caption: "Plans in this offering"
         subscriptions_caption: "Subscribers"
         plan_unmapped: "no group — add one in settings or in the plan's BTCPay metadata"
+        group_inherit: "Inherit (BTCPay metadata or default group)"
+        source_admin: "set here → %{group}"
+        source_btcpay: "from BTCPay metadata → %{group}"
+        source_default: "default group → %{group}"
+        source_none: "%{group}"
         group_missing: "group does not exist"
         col_user: "User"
         col_plan: "Plan"

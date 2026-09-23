@@ -45,9 +45,8 @@ describe DiscourseBtcpay::BtcpayWebhookController do
     SiteSetting.btcpay_api_key = "key"
     SiteSetting.btcpay_store_id = "store"
     SiteSetting.btcpay_offering_id = "off-1"
-    SiteSetting.btcpay_plan_mappings = [
-      { plan_id: "plan-1", group_name: "premium", label: "Premium" }
-    ].to_json
+    DiscourseBtcpay.set_plan_group("plan-1", "premium")
+    DiscourseBtcpay.set_plan_group("plan-2", "vip")
 
     stub_request(
       :get,

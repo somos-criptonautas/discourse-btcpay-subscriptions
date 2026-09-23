@@ -302,3 +302,20 @@
 .btcpay-sub-row.btcpay-needs-upgrade .value {
   color: var(--danger);
 }
+
+.btcpay-plan-group {
+  .btcpay-group-select {
+    max-width: 14em;
+  }
+
+  .btcpay-plan-source {
+    display: block;
+    color: var(--primary-medium);
+    font-size: var(--font-down-2);
+  }
+}
+
+.btcpay-plan-warning {
+  color: var(--danger);
+  font-size: var(--font-down-2);
+}

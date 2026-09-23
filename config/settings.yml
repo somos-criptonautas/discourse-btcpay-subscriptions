@@ -19,10 +19,9 @@ btcpay:
     default: ""
     secret: true
     description: "Webhook secret for HMAC signature validation"
-  btcpay_plan_mappings:
-    default: "[]"
-    textarea: true
-    description: 'One JSON array, e.g. [{"plan_id":"xxx","group_name":"premium","label":"Premium Monthly"}]'
+  btcpay_default_group:
+    default: ""
+    description: "Group granted by any plan with no group of its own. Per-plan groups are set on the BTCPay admin page."
   # Text overrides: blank means "use the translation for the viewer's locale".
   btcpay_button_label:
     default: ""

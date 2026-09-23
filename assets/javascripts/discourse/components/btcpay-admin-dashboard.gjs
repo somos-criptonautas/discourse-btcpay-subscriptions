@@ -6,7 +6,7 @@ import { action } from "@ember/object";
 import { ajax } from "discourse/lib/ajax";
 import { extractError, popupAjaxError } from "discourse/lib/ajax-error";
 import getURL from "discourse/lib/get-url";
-import { eq, not } from "discourse/truth-helpers";
+import { eq, not, or } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 import { PLUGIN_ID } from "../lib/plugin-id";
 
@@ -93,6 +93,21 @@ export default class BtcpayAdminDashboard extends Component {
 
   get networkClass() {
     return `btcpay-network btcpay-network-${this.server.network || "unknown"}`;
+  }
+
+  @action
+  async assignGroup(planId, event) {
+    const groupName = event.target.value;
+
+    try {
+      await ajax("/admin/plugins/btcpay/plan_group", {
+        type: "POST",
+        data: { plan_id: planId, group_name: groupName },
+      });
+      await this.loadServerInfo();
+    } catch (e) {
+      popupAjaxError(e);
+    }
   }
 
   @action
@@ -231,9 +246,32 @@ export default class BtcpayAdminDashboard extends Component {
                 <tr>
                   <td>{{plan.name}}</td>
                   <td>{{plan.price}} {{plan.currency}} / {{plan.interval}}</td>
-                  <td>
+                  <td class="btcpay-plan-group">
+                    <select
+                      class="btcpay-group-select"
+                      {{on "change" (fn this.assignGroup plan.id)}}
+                    >
+                      <option
+                        value=""
+                        selected={{not plan.assigned_group}}
+                      >{{i18n "btcpay.admin.group_inherit"}}</option>
+                      {{#each this.server.groups as |group|}}
+                        <option
+                          value={{group}}
+                          selected={{eq plan.assigned_group group}}
+                        >{{group}}</option>
+                      {{/each}}
+                    </select>
+
                     {{#if plan.group_name}}
-                      {{plan.group_name}}
+                      <span class="btcpay-plan-source">
+                        {{i18n
+                          (concat
+                            "btcpay.admin.source_" (or plan.source "none")
+                          )
+                          group=plan.group_name
+                        }}
+                      </span>
                       {{#unless plan.group_exists}}
                         <span class="btcpay-plan-warning">
                           {{i18n "btcpay.admin.group_missing"}}
@@ -272,7 +310,7 @@ export default class BtcpayAdminDashboard extends Component {
                 <td>{{sub.plan_name}}</td>
                 <td>
                   <span class="btcpay-badge btcpay-status-{{sub.status}}">
-                    {{sub.status}}
+                    {{i18n (concat "btcpay.status." sub.status)}}
                   </span>
                 </td>
                 <td>{{sub.group_name}}</td>

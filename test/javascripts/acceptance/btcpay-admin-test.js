@@ -39,6 +39,8 @@ acceptance("BTCPay | Admin dashboard", function (needs) {
         chain_height: 2900000,
         network: "testnet",
         cryptos: ["BTC", "XMR"],
+        groups: ["premium", "vip"],
+        default_group: "",
         plans: [
           {
             id: "plan-1",
@@ -48,6 +50,7 @@ acceptance("BTCPay | Admin dashboard", function (needs) {
             interval: "Monthly",
             group_name: "premium",
             group_exists: true,
+            assigned_group: null,
             source: "btcpay",
           },
           {
@@ -58,6 +61,7 @@ acceptance("BTCPay | Admin dashboard", function (needs) {
             interval: "Monthly",
             group_name: null,
             group_exists: false,
+            assigned_group: null,
             source: null,
           },
         ],
@@ -81,6 +85,15 @@ acceptance("BTCPay | Admin dashboard", function (needs) {
       .dom(".btcpay-admin-table:last-of-type tbody tr")
       .exists({ count: 1 });
     assert.dom(".btcpay-settings-btn").exists();
+  });
+
+  test("offers a group picker per plan", async function (assert) {
+    await visit("/admin/plugins/discourse-btcpay-subscriptions");
+
+    assert.dom(".btcpay-group-select").exists({ count: 2 });
+    assert
+      .dom(".btcpay-plans-table tbody tr:first-child .btcpay-plan-source")
+      .includesText("premium", "shows where the group came from");
   });
 });
 

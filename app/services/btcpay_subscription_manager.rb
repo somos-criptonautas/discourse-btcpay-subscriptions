@@ -36,16 +36,14 @@ module DiscourseBtcpay
       group_name = group_for_plan(plan_id, plan: subscriber&.dig("plan"))
       unless group_name
         Rails.logger.error("DiscourseBtcpay: No group mapping for plan #{plan_id}")
-        DiscourseBtcpay.notify_admin("Plan Mapping Missing",
-          "Received payment for plan '#{plan_id}' but no group mapping exists. User: #{user.username}")
+        DiscourseBtcpay.notify_admin(:plan_unmapped, plan_id: plan_id, username: user.username)
         return { success: false, error: :plan_not_found }
       end
 
       group = Group.find_by(name: group_name)
       unless group
         Rails.logger.error("DiscourseBtcpay: Group '#{group_name}' not found")
-        DiscourseBtcpay.notify_admin("Group Not Found",
-          "Tried to add user '#{user.username}' to group '#{group_name}' but group doesn't exist.")
+        DiscourseBtcpay.notify_admin(:group_missing, username: user.username, group: group_name)
         return { success: false, error: :group_not_found }
       end
 
@@ -140,15 +138,14 @@ module DiscourseBtcpay
 
       user = User.find_by(id: user_id)
       detail =
-        if sub
-          "Group access retained pending admin review."
-        else
-          "No local subscription record exists for this user — nothing was granted."
-        end
+        I18n.t("discourse_btcpay.alerts.dispute.#{sub ? "retained" : "no_record"}")
 
-      DiscourseBtcpay.notify_admin("Subscription Dispute",
-        "Invoice #{invoice_id} was invalidated/refunded for user '#{user&.username || user_id}'. " \
-        "#{detail}")
+      DiscourseBtcpay.notify_admin(
+        :dispute,
+        invoice_id: invoice_id,
+        username: user&.username || user_id,
+        detail: detail
+      )
     end
 
     def record_payment(user_id, invoice_id:, amount: nil, currency: nil, payment_method: nil, status: "settled", paid_at: nil)

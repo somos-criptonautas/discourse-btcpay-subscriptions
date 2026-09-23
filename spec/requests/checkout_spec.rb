@@ -21,10 +21,8 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
     SiteSetting.btcpay_api_key = "key"
     SiteSetting.btcpay_store_id = "store"
     SiteSetting.btcpay_offering_id = "off-1"
-    SiteSetting.btcpay_plan_mappings = [
-      { plan_id: "plan-1", group_name: "premium", label: "Premium" },
-      { plan_id: "plan-2", group_name: "vip", label: "VIP" }
-    ].to_json
+    DiscourseBtcpay.set_plan_group("plan-1", "premium")
+    DiscourseBtcpay.set_plan_group("plan-2", "vip")
   end
 
   def stub_offering
@@ -190,7 +188,8 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
 
     it "offers every plan in the offering, mapped by BTCPay metadata" do
       Fabricate(:group, name: "vip")
-      SiteSetting.btcpay_plan_mappings = "[]"
+      DiscourseBtcpay.set_plan_group("plan-1", nil)
+      DiscourseBtcpay.set_plan_group("plan-2", nil)
       stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
         .to_return(
           status: 200,
@@ -218,7 +217,8 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
     end
 
     it "hides plans that resolve to no group" do
-      SiteSetting.btcpay_plan_mappings = "[]"
+      DiscourseBtcpay.set_plan_group("plan-1", nil)
+      DiscourseBtcpay.set_plan_group("plan-2", nil)
       stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
         .to_return(
           status: 200,
@@ -230,11 +230,9 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       expect(response.parsed_body["plans"]).to eq([])
     end
 
-    it "lets the mapping setting override BTCPay metadata" do
+    it "lets an admin mapping override BTCPay metadata" do
       Fabricate(:group, name: "vip")
-      SiteSetting.btcpay_plan_mappings = [
-        { plan_id: "plan-2", group_name: "premium", label: "Mapped" }
-      ].to_json
+      DiscourseBtcpay.set_plan_group("plan-2", "premium")
       stub_request(:get, "https://btcpay.example.com/api/v1/stores/store/offerings/off-1")
         .to_return(
           status: 200,
@@ -250,7 +248,7 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
 
       plan = response.parsed_body["plans"].first
       expect(plan["group_name"]).to eq("premium")
-      expect(plan["label"]).to eq("Mapped")
+      expect(plan["label"]).to eq("VIP")
     end
 
     it "prices plans from the offering and caches them" do

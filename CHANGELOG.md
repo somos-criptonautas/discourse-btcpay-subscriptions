@@ -6,10 +6,12 @@ All notable changes to this plugin. Versions follow the `version:` field in
 ## Unreleased
 
 ### Added
-- Plans are read from the BTCPay offering automatically. A plan can carry its
-  Discourse group in its own BTCPay metadata (`discourse_group`), so the
-  `btcpay_plan_mappings` setting is now an optional override rather than the
-  catalogue.
+- Plans are read from the BTCPay offering automatically — no plan ids are typed
+  into Discourse. Each plan's group comes from a dropdown on the admin page,
+  from `discourse_group` in the plan's BTCPay metadata, or from the new
+  `btcpay_default_group` setting.
+- Admin alerts (underpaid, overpaid, disputes, HMAC failures, …) are translated
+  and sent in the recipient admin's own locale instead of hardcoded English.
 - Admin page lists every plan in the offering with the group it resolves to,
   and flags plans that map to nothing or to a group that does not exist.
 - Settings link on the admin page.
@@ -30,11 +32,14 @@ All notable changes to this plugin. Versions follow the `version:` field in
   in addition to the backend one.
 
 ### Removed
+- The `btcpay_plan_mappings` JSON setting. Plan → group is now set in the UI.
 - `docs/btcpay-checkout-preview.jsx`, a React/Stripe prototype that no longer
   matched the plugin.
 
 ### Operator actions
 - Set `btcpay_offering_id` if it is empty; the admin page names it when missing.
+- Re-pick each plan's group on Admin → Plugins → BTCPay (or set
+  `btcpay_default_group`). Values in the removed JSON setting are not migrated.
 - Add `InvoiceExpiredPaidPartial`, `InvoicePaidAfterExpiration`, `InvoiceRefund`,
   `SubscriberActivated`, `SubscriberCreated`, `SubscriberCharged`,
   `SubscriberCredited` and `SubscriberNeedUpgrade` to the BTCPay webhook.

@@ -6,7 +6,7 @@ en:
     btcpay_store_id: "BTCPay Store ID"
     btcpay_offering_id: "BTCPay Offering ID (holds the subscription plans)"
     btcpay_webhook_secret: "BTCPay webhook HMAC secret"
-    btcpay_plan_mappings: "Plan-to-group mappings (JSON array)"
+    btcpay_default_group: "Default group for plans with no group of their own"
     btcpay_button_label: "Payment button text (blank = translated default)"
     btcpay_tickets_title: "Heading on /tickets (blank = translated default)"
     btcpay_tickets_intro: "Intro on /tickets (blank = translated default)"
@@ -27,6 +27,69 @@ en:
         This is an automated message from the BTCPay Subscriptions plugin.
 
   discourse_btcpay:
+    alerts:
+      hmac_failures:
+        subject: "BTCPay: webhook signature failing"
+        body: |
+          %{count} consecutive HMAC failures were detected.
+
+          Check that the webhook secret matches between BTCPay and the
+          `btcpay_webhook_secret` site setting. Until it does, no payment can
+          grant access.
+      plan_unmapped:
+        subject: "BTCPay: plan has no group"
+        body: |
+          A payment settled for plan '%{plan_id}' (user %{username}) but the
+          plan grants no Discourse group.
+
+          Assign one on Admin → Plugins → BTCPay, set `discourse_group` in the
+          plan's BTCPay metadata, or set a default group.
+      group_missing:
+        subject: "BTCPay: group does not exist"
+        body: |
+          Tried to add '%{username}' to the group '%{group}', which does not
+          exist. Create it, then use the Sync button to grant access.
+      dispute:
+        subject: "BTCPay: invoice disputed"
+        body: |
+          Invoice %{invoice_id} was invalidated or refunded for '%{username}'.
+
+          %{detail}
+        retained: "Group access was kept, pending your review."
+        no_record: "No local subscription record exists for this user — nothing was granted."
+      overpaid:
+        subject: "BTCPay: invoice overpaid"
+        body: |
+          Invoice %{invoice_id} received more than the amount due. BTCPay can
+          refund the difference from the invoice page.
+      needs_upgrade:
+        subject: "BTCPay: subscriber needs a different plan"
+        body: |
+          BTCPay reports that '%{username}' needs to upgrade their plan. Group
+          access was left untouched.
+      paid_late:
+        subject: "BTCPay: invoice paid late"
+        body: |
+          Invoice %{invoice_id} for '%{username}' was paid after it expired, so
+          BTCPay granted nothing and the money is unclaimed.
+
+          Mark the invoice settled in BTCPay to honour it, or refund it.
+      underpaid:
+        subject: "BTCPay: invoice underpaid"
+        body: |
+          Invoice %{invoice_id} for '%{username}' expired after receiving only
+          %{received}. No access was granted.
+
+          Refund it or top it up from BTCPay.
+        partial: "a partial payment"
+      refunded:
+        subject: "BTCPay: refund created"
+        body: |
+          A refund was created for invoice %{invoice_id} ('%{username}', pull
+          payment %{pull_payment_id}).
+
+          Group access was left untouched — remove it by hand if the refund is
+          final.
     errors:
       not_enabled: "BTCPay integration is not enabled."
       missing_config: "BTCPay Server is not fully configured."

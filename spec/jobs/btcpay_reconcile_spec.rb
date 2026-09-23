@@ -18,9 +18,8 @@ describe Jobs::BtcpayReconcile do
     SiteSetting.btcpay_store_id = "store"
     SiteSetting.btcpay_offering_id = "off-1"
     SiteSetting.btcpay_reconcile_interval_hours = 6
-    SiteSetting.btcpay_plan_mappings = [
-      { plan_id: "plan-1", group_name: "premium", label: "Premium" }
-    ].to_json
+    DiscourseBtcpay.set_plan_group("plan-1", "premium")
+    DiscourseBtcpay.set_plan_group("plan-2", "vip")
   end
 
   def store(status:, updated_at: Time.now, customer: customer_id)
