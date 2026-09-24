@@ -241,6 +241,8 @@ module DiscourseBtcpay
     def handle_invoice_settled(event)
       invoice_id = event["invoiceId"]
 
+      return if handle_donation(event, invoice_id)
+
       if DiscourseBtcpay.processed_invoice?(invoice_id)
         Rails.logger.info("DiscourseBtcpay: Invoice #{invoice_id} already processed, skipping")
         return
@@ -340,6 +342,44 @@ module DiscourseBtcpay
         "payments" => entries.last(20),
         "updated_at" => Time.now.iso8601
       })
+    end
+
+    # POS donations carry "btcpay-donation:<user_id>:<nonce>" as their order id;
+    # they grant no group, they credit the donor.
+    def handle_donation(event, invoice_id)
+      order_id = event.dig("metadata", "orderId")
+      user_id = DiscourseBtcpay.user_id_from_order(order_id)
+      return false unless user_id
+
+      user = User.find_by(id: user_id)
+      unless user
+        Rails.logger.warn("DiscourseBtcpay: Donation #{invoice_id} for missing user #{user_id}")
+        return true
+      end
+
+      amount = event.dig("metadata", "itemTotal") || invoice_amount(invoice_id)
+      currency = SiteSetting.btcpay_donation_currency
+
+      DiscourseBtcpay.clear_payment_progress(user_id)
+      return true if DiscourseBtcpay.donation_recorded?(invoice_id)
+
+      DiscourseBtcpay.record_donation(
+        user_id: user_id,
+        invoice_id: invoice_id,
+        amount: amount,
+        currency: currency
+      )
+      DiscourseBtcpay.reward_donor(user, amount)
+
+      Rails.logger.info("DiscourseBtcpay: Recorded #{amount} #{currency} donation from #{user.username}")
+      true
+    end
+
+    def invoice_amount(invoice_id)
+      BtcpayApi.new.invoice(invoice_id)["amount"]
+    rescue BtcpayApi::ApiError => e
+      Rails.logger.warn("DiscourseBtcpay: Could not read donation amount: #{e.message}")
+      0
     end
 
     def handle_invoice_processing(event)

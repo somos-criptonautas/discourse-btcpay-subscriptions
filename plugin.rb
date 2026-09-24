@@ -111,6 +111,108 @@ after_initialize do
       plan&.dig("name").presence || plan_id
     end
 
+    DONATION_ORDER_PREFIX = "btcpay-donation"
+
+    def self.donation_order_id(user_id)
+      "#{DONATION_ORDER_PREFIX}:#{user_id}:#{SecureRandom.hex(8)}"
+    end
+
+    # "btcpay-donation:<user_id>:<nonce>" — generated server side so a browser
+    # cannot credit a donation to someone else.
+    def self.user_id_from_order(order_id)
+      parts = order_id.to_s.split(":")
+      return nil unless parts.first == DONATION_ORDER_PREFIX
+
+      parts[1].to_i.positive? ? parts[1].to_i : nil
+    end
+
+    def self.donation_recorded?(invoice_id)
+      ::PluginStore.get(PLUGIN_NAME, "donation:#{invoice_id}").present?
+    end
+
+    # One row per invoice for the audit trail, one per donor for the totals.
+    def self.record_donation(user_id:, invoice_id:, amount:, currency:)
+      return if invoice_id.blank? || donation_recorded?(invoice_id)
+
+      value = amount.to_f
+      ::PluginStore.set(PLUGIN_NAME, "donation:#{invoice_id}", {
+        "user_id" => user_id,
+        "amount" => value,
+        "currency" => currency,
+        "paid_at" => Time.now.iso8601
+      })
+
+      return if user_id.blank?
+
+      donor = ::PluginStore.get(PLUGIN_NAME, "donor:#{user_id}") || { "total" => 0, "count" => 0 }
+      donor["total"] = donor["total"].to_f + value
+      donor["count"] = donor["count"].to_i + 1
+      donor["last_at"] = Time.now.iso8601
+      ::PluginStore.set(PLUGIN_NAME, "donor:#{user_id}", donor)
+    end
+
+    def self.each_donor
+      return enum_for(:each_donor) unless block_given?
+
+      ::PluginStoreRow
+        .where(plugin_name: PLUGIN_NAME)
+        .where("key LIKE ?", "donor:%")
+        .find_each do |row|
+          data = JSON.parse(row.value) rescue next
+          yield row.key.sub("donor:", "").to_i, data
+        end
+    end
+
+    def self.donation_total
+      each_donor.sum { |_user_id, data| data["total"].to_f }
+    end
+
+    # Badge handed to donors, chosen on the admin page
+    def self.donor_badge_id
+      ::PluginStore.get(PLUGIN_NAME, "donor_badge")
+    end
+
+    def self.set_donor_badge(badge_id)
+      if badge_id.blank?
+        ::PluginStore.remove(PLUGIN_NAME, "donor_badge")
+      else
+        ::PluginStore.set(PLUGIN_NAME, "donor_badge", badge_id.to_i)
+      end
+    end
+
+    # Badge + leaderboard points, both optional and both no-ops when not set up
+    def self.reward_donor(user, amount)
+      grant_donor_badge(user)
+      award_donation_points(user, amount)
+    end
+
+    def self.grant_donor_badge(user)
+      badge_id = donor_badge_id
+      return if badge_id.blank?
+
+      badge = Badge.find_by(id: badge_id, enabled: true)
+      return unless badge
+
+      ::BadgeGranter.grant(badge, user)
+    rescue => e
+      Rails.logger.error("DiscourseBtcpay: Could not grant donor badge: #{e.message}")
+    end
+
+    def self.award_donation_points(user, amount)
+      points = (SiteSetting.btcpay_donation_points.to_i * amount.to_f).round
+      return if points <= 0
+      return unless defined?(::DiscourseGamification::GamificationScoreEvent)
+
+      ::DiscourseGamification::GamificationScoreEvent.create!(
+        user_id: user.id,
+        date: Date.today,
+        points: points,
+        description: "BTCPay donation"
+      )
+    rescue => e
+      Rails.logger.error("DiscourseBtcpay: Could not award donation points: #{e.message}")
+    end
+
     # A payment from someone with no account yet: remembered by email until
     # they accept the invite and an account exists to attach it to.
     def self.store_claim(email, data)
@@ -243,6 +345,7 @@ after_initialize do
   require_relative "app/controllers/btcpay_pages_controller"
   require_relative "app/controllers/btcpay_webhook_controller"
   require_relative "app/controllers/btcpay_checkout_controller"
+  require_relative "app/controllers/btcpay_donations_controller"
   require_relative "app/controllers/admin/btcpay_admin_controller"
   require_relative "app/jobs/scheduled/btcpay_reconcile"
 
@@ -252,6 +355,8 @@ after_initialize do
     post "/checkout" => "btcpay_checkout#create"
     get "/subscription" => "btcpay_checkout#status"
     get "/plans" => "btcpay_checkout#plans"
+    post "/donate" => "btcpay_donations#create"
+    get "/donations" => "btcpay_donations#index"
   end
 
   Discourse::Application.routes.append do
@@ -267,6 +372,7 @@ after_initialize do
       get "/status" => "discourse_btcpay/admin/btcpay_admin#index"
       get "/subscriptions" => "discourse_btcpay/admin/btcpay_admin#subscriptions"
       post "/plan_group" => "discourse_btcpay/admin/btcpay_admin#plan_group"
+      post "/donor_badge" => "discourse_btcpay/admin/btcpay_admin#donor_badge"
       post "/sync" => "discourse_btcpay/admin/btcpay_admin#sync"
     end
   end

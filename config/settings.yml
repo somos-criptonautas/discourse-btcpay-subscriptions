@@ -19,6 +19,24 @@ btcpay:
     default: ""
     secret: true
     description: "Webhook secret for HMAC signature validation"
+  btcpay_donations_enabled:
+    default: false
+    client: true
+    description: "Accept one-off donations through a BTCPay Point of Sale app."
+  btcpay_pos_app_id:
+    default: ""
+    description: "BTCPay Point of Sale app id, from its URL /apps/<id>/pos. Required for donations."
+  btcpay_donation_currency:
+    default: "USD"
+    description: "Currency donation amounts are entered in."
+  btcpay_donation_min:
+    default: 1
+    min: 1
+    description: "Smallest donation accepted, in the donation currency."
+  btcpay_donation_points:
+    default: 0
+    min: 0
+    description: "Gamification points per unit donated (needs discourse-gamification). 0 disables."
   btcpay_anonymous_checkout:
     default: false
     client: true

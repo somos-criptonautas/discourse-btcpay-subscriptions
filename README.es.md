@@ -225,6 +225,26 @@ Si la dirección ya pertenece a un miembro no se envía invitación: la suscripc
 
 A quien ya ha iniciado sesión no se le pregunta nada: su email de Discourse viaja con el checkout (`btcpay_send_email`, activo por defecto) y BTCPay se salta ese paso.
 
+### Donaciones
+
+Desactivadas por defecto. Activa `btcpay_donations_enabled` y pon en `btcpay_pos_app_id` el id que aparece en la URL de tu app TPV (`/apps/<id>/pos`).
+
+Cómo funciona: Discourse pide una factura a la app TPV enviando un order id que genera él mismo — `btcpay-donation:<user_id>:<nonce>`. BTCPay lo guarda en los metadatos de la factura, así que cuando llega `InvoiceSettled` la donación se atribuye al miembro correcto. **El order id nunca viene del navegador**, que es lo que impide que alguien acredite una donación a otra persona.
+
+Endpoints para un theme component:
+
+| Endpoint | Para qué |
+|---|---|
+| `POST /btcpay/donate` `{amount}` | Devuelve `{invoice_id, checkout_url, modal_url}`; con límite de tasa y sesión iniciada |
+| `GET /btcpay/donations` | `{currency, total, count, supporters: [{username, avatar_template, amount, count}]}` para una barra de recaudación |
+
+Se puede recompensar a quien dona:
+
+- **Insignia** — elígela en Admin → Plugins → BTCPay; se concede con la primera donación liquidada.
+- **Puntos** — pon en `btcpay_donation_points` los puntos por unidad donada. Necesita [discourse-gamification](https://github.com/discourse/discourse-gamification); si no está instalado, se ignora.
+
+Las donaciones no conceden ningún grupo ni tocan las suscripciones.
+
 ### Membresía manual del grupo
 
 Añadir a mano un usuario al grupo de un plan concede el acceso de inmediato — los grupos de Discourse son lo que protege el contenido, y el plugin nunca retira a un miembro del que no tiene registro. La reconciliación solo recorre sus propias suscripciones, así que a los miembros añadidos a mano no los toca nunca.

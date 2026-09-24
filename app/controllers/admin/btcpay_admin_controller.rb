@@ -50,7 +50,10 @@ module DiscourseBtcpay
           cryptos: sync.filter_map { |s| s["cryptoCode"] }.uniq,
           plans: offering_plans,
           groups: assignable_groups,
-          default_group: SiteSetting.btcpay_default_group
+          default_group: SiteSetting.btcpay_default_group,
+          donations: donation_summary,
+          badges: grantable_badges,
+          donor_badge_id: DiscourseBtcpay.donor_badge_id
         }
       end
 
@@ -96,6 +99,21 @@ module DiscourseBtcpay
         render json: { plan_id: plan_id, group_name: group_name }
       end
 
+      # POST /admin/plugins/btcpay/donor_badge
+      # Body: { badge_id: 12 } — blank clears it
+      def donor_badge
+        badge_id = params[:badge_id].presence
+
+        if badge_id && !Badge.exists?(id: badge_id, enabled: true)
+          return render json: { error: I18n.t("discourse_btcpay.errors.badge_not_found") },
+                        status: :unprocessable_entity
+        end
+
+        DiscourseBtcpay.set_donor_badge(badge_id)
+
+        render json: { badge_id: DiscourseBtcpay.donor_badge_id }
+      end
+
       # POST /admin/plugins/btcpay/sync
       # Manual trigger for reconciliation
       def sync
@@ -124,6 +142,23 @@ module DiscourseBtcpay
             source: DiscourseBtcpay.group_source(plan_id, plan: plan)
           }
         end
+      end
+
+      def donation_summary
+        return nil unless SiteSetting.btcpay_donations_enabled
+
+        donors = DiscourseBtcpay.each_donor.to_a
+
+        {
+          currency: SiteSetting.btcpay_donation_currency,
+          total: donors.sum { |_user_id, data| data["total"].to_f }.round(2),
+          count: donors.sum { |_user_id, data| data["count"].to_i },
+          donors: donors.size
+        }
+      end
+
+      def grantable_badges
+        Badge.where(enabled: true).order(:name).pluck(:id, :name).map { |id, name| { id: id, name: name } }
       end
 
       # Groups an admin can hand out — automatic ones (trust levels, staff)

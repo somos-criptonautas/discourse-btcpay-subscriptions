@@ -71,6 +71,23 @@ module DiscourseBtcpay
       post("/api/v1/plan-checkout/#{CGI.escape(checkout_id.to_s)}", {})
     end
 
+    # The POS app is a public MVC endpoint, not Greenfield: form-encoded in,
+    # JSON out, no API key. order_id is what ties the invoice back to a user.
+    def create_pos_invoice(app_id:, amount:, order_id:, email: nil, redirect_url: nil)
+      uri = URI("#{@base_url}/apps/#{CGI.escape(app_id.to_s)}/pos")
+      request = Net::HTTP::Post.new(uri)
+      form = { "amount" => amount.to_s, "orderId" => order_id }
+      form["email"] = email if email.present?
+      form["redirectUrl"] = redirect_url if redirect_url.present?
+      request.set_form_data(form)
+      request["Accept"] = "application/json"
+
+      result = execute(uri, request, authenticate: false, json_body: false)
+      raise ApiError, result["error"] if result.is_a?(Hash) && result["error"].present?
+
+      result
+    end
+
     def invoice_url(invoice_id)
       "#{@base_url}/i/#{invoice_id}"
     end
@@ -132,9 +149,9 @@ module DiscourseBtcpay
       execute(uri, request)
     end
 
-    def execute(uri, request)
-      request["Content-Type"] = "application/json"
-      request["Authorization"] = "token #{@api_key}"
+    def execute(uri, request, authenticate: true, json_body: true)
+      request["Content-Type"] = "application/json" if json_body
+      request["Authorization"] = "token #{@api_key}" if authenticate
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"

@@ -242,6 +242,26 @@ If the address already belongs to a member, no invite is sent: the subscription 
 
 For logged-in buyers nothing is asked at all — their Discourse email is sent with the checkout (`btcpay_send_email`, on by default), so BTCPay skips its email step.
 
+### Donations
+
+Off by default. Turn on `btcpay_donations_enabled` and set `btcpay_pos_app_id` to the id in your Point of Sale app's URL (`/apps/<id>/pos`).
+
+How it works: Discourse asks the POS app for an invoice, passing an order id it generates itself — `btcpay-donation:<user_id>:<nonce>`. BTCPay stores that in the invoice metadata, so when `InvoiceSettled` arrives the donation is attributed to the right member. **The order id never comes from the browser**, which is what stops one member crediting a donation to another.
+
+Endpoints for a theme component to call:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /btcpay/donate` `{amount}` | Returns `{invoice_id, checkout_url, modal_url}`; rate limited, login required |
+| `GET /btcpay/donations` | `{currency, total, count, supporters: [{username, avatar_template, amount, count}]}` for a fundraising bar |
+
+Donors can be rewarded automatically:
+
+- **Badge** — pick one on Admin → Plugins → BTCPay; granted on the first settled donation.
+- **Points** — set `btcpay_donation_points` to the points awarded per unit donated. Requires [discourse-gamification](https://github.com/discourse/discourse-gamification); it is ignored when that plugin is absent.
+
+Donations grant no group and never touch subscriptions.
+
 ### Manual group membership
 
 Adding a user to a plan's group by hand grants access immediately — Discourse groups are what gate content, and the plugin never revokes a member it has no record for. The reconcile job only walks its own subscription records, so hand-granted members are left alone forever.

@@ -6,6 +6,11 @@ All notable changes to this plugin. Versions follow the `version:` field in
 ## Unreleased
 
 ### Added
+- One-off donations through a BTCPay Point of Sale app: `POST /btcpay/donate`
+  creates the invoice with a server-generated order id, the existing webhook
+  attributes the settled payment, and `GET /btcpay/donations` serves totals and
+  supporters for a fundraising bar. Optional donor badge (picked on the admin
+  page) and gamification points per unit donated.
 - Logged-in buyers are no longer asked for an email by BTCPay — theirs is sent
   with the checkout (`btcpay_send_email`).
 - Optional anonymous checkout (`btcpay_anonymous_checkout`): a logged-out
