@@ -111,6 +111,20 @@ after_initialize do
       plan&.dig("name").presence || plan_id
     end
 
+    # A payment from someone with no account yet: remembered by email until
+    # they accept the invite and an account exists to attach it to.
+    def self.store_claim(email, data)
+      ::PluginStore.set(PLUGIN_NAME, "claim:#{email.to_s.downcase}", data)
+    end
+
+    def self.get_claim(email)
+      ::PluginStore.get(PLUGIN_NAME, "claim:#{email.to_s.downcase}")
+    end
+
+    def self.clear_claim(email)
+      ::PluginStore.remove(PLUGIN_NAME, "claim:#{email.to_s.downcase}")
+    end
+
     # Some facts reach us twice — BTCPay fires both InvoiceExpired and
     # InvoiceExpiredPaidPartial for one underpaid invoice — so alerts are
     # deduplicated by a key rather than sent per delivery.
@@ -254,6 +268,21 @@ after_initialize do
       get "/subscriptions" => "discourse_btcpay/admin/btcpay_admin#subscriptions"
       post "/plan_group" => "discourse_btcpay/admin/btcpay_admin#plan_group"
       post "/sync" => "discourse_btcpay/admin/btcpay_admin#sync"
+    end
+  end
+
+  # Someone who paid before having an account: attach the subscription as soon
+  # as the account exists, whether they arrived by invite or signed up directly.
+  on(:user_created) do |user|
+    claim = DiscourseBtcpay.get_claim(user.email)
+
+    if claim
+      DiscourseBtcpay::BtcpaySubscriptionManager.new.activate(
+        user_id: user.id,
+        customer_id: claim["customer_id"],
+        plan_id: claim["plan_id"]
+      )
+      DiscourseBtcpay.clear_claim(user.email)
     end
   end
 

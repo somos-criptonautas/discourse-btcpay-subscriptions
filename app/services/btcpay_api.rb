@@ -44,7 +44,8 @@ module DiscourseBtcpay
       subscriber_metadata: {},
       invoice_metadata: {},
       success_redirect_link: nil,
-      on_pay_behavior: nil
+      on_pay_behavior: nil,
+      new_subscriber_email: nil
     )
       body = {
         storeId: @store_id,
@@ -54,6 +55,8 @@ module DiscourseBtcpay
       }
       body[:onPayBehavior] = on_pay_behavior if on_pay_behavior.present?
       body[:customerSelector] = customer_selector if customer_selector.present?
+      # Without this BTCPay stops to ask the payer for an email address
+      body[:newSubscriberEmail] = new_subscriber_email if new_subscriber_email.present?
       body[:newSubscriberMetadata] = subscriber_metadata if subscriber_metadata.present?
       body[:successRedirectLink] = success_redirect_link if success_redirect_link.present?
 

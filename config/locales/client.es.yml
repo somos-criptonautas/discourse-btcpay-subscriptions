@@ -30,6 +30,7 @@ es:
         trial_days:
           one: "prueba de %{count} día"
           other: "prueba de %{count} días"
+        login_to_subscribe: "Inicia sesión para suscribirte"
         choose_plan: "Elige un plan"
         current_plan: "Plan actual"
         upgrade: "Mejorar"

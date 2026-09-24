@@ -124,17 +124,82 @@ module DiscourseBtcpay
         return candidate.to_i if User.exists?(id: candidate.to_i)
       end
 
-      DiscourseBtcpay.user_id_for_customer(customer_id_of(event) || event["customerId"])
+      by_customer = DiscourseBtcpay.user_id_for_customer(customer_id_of(event) || event["customerId"])
+      return by_customer if by_customer
+
+      email = customer_email(event)
+      email.present? ? User.find_by_email(email)&.id : nil
     end
 
     def plan_id_of(event)
       subscriber_of(event)&.dig("plan", "id") || event.dig("metadata", "discourse_plan_id")
     end
 
+    # BTCPay stores identities as a free-form hash, commonly {"Email": "..."}
+    def customer_email(event)
+      identities = subscriber_of(event)&.dig("customer", "identities")
+      return nil unless identities.is_a?(Hash)
+
+      pair = identities.find { |key, value| key.to_s.casecmp("email").zero? && value.present? }
+      pair&.last
+    end
+
+    # Nobody here owns that address yet: invite them instead of creating an
+    # account for an email we have not verified. The invite carries the group,
+    # so accepting it grants access, and the claim links the subscription once
+    # the account exists.
+    def invite_buyer(event, plan_id)
+      email = customer_email(event)
+      return false if email.blank?
+
+      group_name = DiscourseBtcpay.group_for_plan(plan_id)
+      group = Group.find_by(name: group_name) if group_name.present?
+
+      unless group
+        Rails.logger.error("DiscourseBtcpay: Cannot invite #{email}, plan #{plan_id} grants no group")
+        return false
+      end
+
+      DiscourseBtcpay.store_claim(email, {
+        "customer_id" => customer_id_of(event),
+        "plan_id" => plan_id,
+        "group_name" => group.name,
+        "invited_at" => Time.now.iso8601
+      })
+
+      inviter = User.where(admin: true).where("id > 0").order(:id).first || Discourse.system_user
+
+      begin
+        Invite.generate(inviter, email: email, group_ids: [group.id])
+        Rails.logger.info("DiscourseBtcpay: Invited #{email} to '#{group.name}' after payment")
+      rescue Invite::UserExists
+        # Raced with a signup: the account exists now, so treat it as one
+        user = User.find_by_email(email)
+        if user
+          DiscourseBtcpay.clear_claim(email)
+          BtcpaySubscriptionManager.new.activate(
+            user_id: user.id,
+            customer_id: customer_id_of(event),
+            plan_id: plan_id
+          )
+        end
+      rescue => e
+        Rails.logger.error("DiscourseBtcpay: Could not invite #{email}: #{e.message}")
+        DiscourseBtcpay.notify_admin(:invite_failed, email: email, error: e.message)
+        return false
+      end
+
+      true
+    end
+
     def handle_plan_started(event)
       user_id = resolve_user_id(event)
       subscriber = subscriber_of(event)
       plan_id = plan_id_of(event)
+
+      if user_id.blank? && plan_id.present? && invite_buyer(event, plan_id)
+        return
+      end
 
       unless user_id && plan_id
         Rails.logger.error("DiscourseBtcpay: PlanStarted without a resolvable user/plan")

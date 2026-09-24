@@ -7,6 +7,7 @@ import { service } from "@ember/service";
 import { htmlSafe } from "@ember/template";
 import { ajax } from "discourse/lib/ajax";
 import { extractError } from "discourse/lib/ajax-error";
+import getURL from "discourse/lib/get-url";
 import { eq, not, or } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 import { btcpayText } from "../lib/btcpay-text";
@@ -64,8 +65,10 @@ export default class BtcpayCheckout extends Component {
 
   constructor() {
     super(...arguments);
-    if (this.isVisible) {
+    if (this.isVisible && !this.isAnonymous) {
       this.load();
+    } else if (this.isVisible) {
+      this.loadPlans();
     }
   }
 
@@ -78,8 +81,23 @@ export default class BtcpayCheckout extends Component {
     }
   }
 
+  // Anonymous visitors see the plans and their prices — only the buy step
+  // needs an account, and BTCPay never has to ask them anything.
   get isVisible() {
-    return this.siteSettings.btcpay_enabled && this.currentUser;
+    return this.siteSettings.btcpay_enabled;
+  }
+
+  get isAnonymous() {
+    return !this.currentUser;
+  }
+
+  // Either they can pay as a guest, or they have to sign in first
+  get needsLogin() {
+    return this.isAnonymous && !this.siteSettings.btcpay_anonymous_checkout;
+  }
+
+  get loginUrl() {
+    return getURL("/login");
   }
 
   get buttonLabel() {
@@ -309,7 +327,7 @@ export default class BtcpayCheckout extends Component {
                   name="btcpay_plan"
                   value={{plan.plan_id}}
                   checked={{eq this.selectedPlan plan.plan_id}}
-                  disabled={{or plan.isCurrent plan.isBlocked}}
+                  disabled={{or this.needsLogin plan.isCurrent plan.isBlocked}}
                   {{on "change" (fn this.selectPlan plan.plan_id)}}
                 />
 
@@ -372,18 +390,27 @@ export default class BtcpayCheckout extends Component {
             {{/each}}
           </fieldset>
 
-          <button
-            type="button"
-            class="btn btn-primary btn-large btcpay-checkout-btn"
-            disabled={{or this.loading (not this.selectedPlan)}}
-            {{on "click" this.checkout}}
-          >
-            {{if
-              this.loading
-              (i18n "btcpay.checkout.processing")
-              this.buttonLabel
-            }}
-          </button>
+          {{#if this.needsLogin}}
+            <a
+              href={{this.loginUrl}}
+              class="btn btn-primary btn-large btcpay-checkout-btn"
+            >
+              {{i18n "btcpay.checkout.login_to_subscribe"}}
+            </a>
+          {{else}}
+            <button
+              type="button"
+              class="btn btn-primary btn-large btcpay-checkout-btn"
+              disabled={{or this.loading (not this.selectedPlan)}}
+              {{on "click" this.checkout}}
+            >
+              {{if
+                this.loading
+                (i18n "btcpay.checkout.processing")
+                this.buttonLabel
+              }}
+            </button>
+          {{/if}}
         {{else}}
           <p class="btcpay-no-plans">{{i18n "btcpay.checkout.no_plans"}}</p>
         {{/if}}

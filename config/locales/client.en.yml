@@ -30,6 +30,7 @@ en:
         trial_days:
           one: "%{count}-day trial"
           other: "%{count}-day trial"
+        login_to_subscribe: "Log in to subscribe"
         choose_plan: "Choose a plan"
         current_plan: "Current plan"
         upgrade: "Upgrade"

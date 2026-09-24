@@ -4,14 +4,16 @@ module DiscourseBtcpay
   class BtcpayCheckoutController < ::ApplicationController
     requires_plugin DiscourseBtcpay::PLUGIN_NAME
 
-    before_action :ensure_logged_in
+    before_action :ensure_can_buy
     before_action :ensure_btcpay_configured
 
     # POST /btcpay/checkout
     # Body: { plan_id: "xxx" }
     def create
-      RateLimiter.new(current_user, "btcpay-checkout", 5, 1.minute).performed!
-      RateLimiter.new(current_user, "btcpay-checkout-hourly", 20, 1.hour).performed!
+      # Anonymous buyers have no account to limit, so limit the address
+      limit_key = current_user ? "btcpay-checkout" : "btcpay-checkout-#{request.ip}"
+      RateLimiter.new(current_user, limit_key, 5, 1.minute).performed!
+      RateLimiter.new(current_user, "#{limit_key}-hourly", 20, 1.hour).performed!
 
       plan_id = params.require(:plan_id)
 
@@ -20,7 +22,7 @@ module DiscourseBtcpay
         return render json: { error: I18n.t("discourse_btcpay.errors.plan_not_found") }, status: :not_found
       end
 
-      existing = DiscourseBtcpay.get_subscription(current_user.id)
+      existing = current_user && DiscourseBtcpay.get_subscription(current_user.id)
 
       change = plan_change(existing, plan_id)
       if change == :downgrade
@@ -29,11 +31,15 @@ module DiscourseBtcpay
         }, status: :unprocessable_entity
       end
 
-      metadata = {
-        discourse_user_id: current_user.id.to_s,
-        discourse_username: current_user.username,
-        discourse_plan_id: plan_id
-      }
+      metadata = { discourse_plan_id: plan_id }
+
+      if current_user
+        metadata[:discourse_user_id] = current_user.id.to_s
+        metadata[:discourse_username] = current_user.username
+      else
+        # BTCPay collects the email; the webhook turns it into an invite
+        metadata[:discourse_anonymous] = "true"
+      end
 
       api = BtcpayApi.new
       result =
@@ -43,6 +49,8 @@ module DiscourseBtcpay
           customer_selector: existing && existing["customer_id"],
           subscriber_metadata: metadata,
           invoice_metadata: metadata,
+          # Skips BTCPay's "what is your email?" step for a new subscriber
+          new_subscriber_email: subscriber_email(existing),
           success_redirect_link: "#{Discourse.base_url}#{SiteSetting.btcpay_redirect_after_checkout}",
           # An upgrade should take effect now, refunding the unused remainder
           on_pay_behavior: change == :upgrade ? "HardMigration" : nil
@@ -89,6 +97,8 @@ module DiscourseBtcpay
 
     # GET /btcpay/subscription
     def status
+      return render json: { subscription: nil, payments: [], portal_url: nil } unless current_user
+
       sub = DiscourseBtcpay.get_subscription(current_user.id)
       payments = DiscourseBtcpay.get_payments(current_user.id)
 
@@ -160,6 +170,8 @@ module DiscourseBtcpay
     # BTCPay may have created the customer during checkout; hold on to the id
     # so later lookups and renewals address the same subscriber.
     def remember_customer(result)
+      return if current_user.blank?
+
       customer_id = result.dig("subscriber", "customer", "id")
       return if customer_id.blank?
 
@@ -172,6 +184,15 @@ module DiscourseBtcpay
       )
     end
 
+    # Buying without an account is opt-in: it creates forum members from
+    # payments, which is a policy decision, not a default.
+    def ensure_can_buy
+      return if current_user
+      return if SiteSetting.btcpay_anonymous_checkout && action_name != "status"
+
+      ensure_logged_in
+    end
+
     def ensure_btcpay_configured
       unless SiteSetting.btcpay_enabled
         return render json: { error: I18n.t("discourse_btcpay.errors.not_enabled") }, status: :service_unavailable
@@ -181,6 +202,16 @@ module DiscourseBtcpay
         render json: { error: I18n.t("discourse_btcpay.errors.missing_config") },
                status: :service_unavailable
       end
+    end
+
+    # Only for a subscriber BTCPay does not know yet: an existing customer id
+    # already carries whatever address they registered with.
+    def subscriber_email(existing)
+      return nil if current_user.blank?
+      return nil if existing && existing["customer_id"].present?
+      return nil unless SiteSetting.btcpay_send_email
+
+      current_user.email
     end
 
     def cooked(text)

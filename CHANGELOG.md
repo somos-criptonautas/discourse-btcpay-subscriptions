@@ -6,6 +6,12 @@ All notable changes to this plugin. Versions follow the `version:` field in
 ## Unreleased
 
 ### Added
+- Logged-in buyers are no longer asked for an email by BTCPay — theirs is sent
+  with the checkout (`btcpay_send_email`).
+- Optional anonymous checkout (`btcpay_anonymous_checkout`): a logged-out
+  visitor pays, gives BTCPay their email, and is invited to the forum with the
+  plan's group attached. The subscription binds to the account on signup.
+- Anonymous visitors see plans and prices on /tickets instead of an empty page.
 - Plans are read from the BTCPay offering automatically — no plan ids are typed
   into Discourse. Each plan's group comes from a dropdown on the admin page,
   from `discourse_group` in the plan's BTCPay metadata, or from the new

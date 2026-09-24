@@ -6,6 +6,8 @@ es:
     btcpay_store_id: "ID de la tienda de BTCPay"
     btcpay_offering_id: "ID de la oferta de BTCPay (contiene los planes)"
     btcpay_webhook_secret: "Secreto HMAC del webhook de BTCPay"
+    btcpay_anonymous_checkout: "Permitir comprar sin haber iniciado sesión (se les invita por email al pagar)"
+    btcpay_send_email: "Enviar el email del comprador a BTCPay (evita que lo pida en el checkout)"
     btcpay_default_group: "Grupo por defecto para los planes que no tengan uno propio"
     btcpay_button_label: "Texto del botón de pago (vacío = traducción por defecto)"
     btcpay_tickets_title: "Título de /tickets (vacío = traducción por defecto)"
@@ -28,6 +30,14 @@ es:
 
   discourse_btcpay:
     alerts:
+      invite_failed:
+        subject: "BTCPay: no se pudo invitar a un comprador"
+        body: |
+          Alguien pagó una suscripción con el email %{email}, pero no se pudo
+          enviar la invitación: %{error}
+
+          Todavía no tiene acceso. Invítale a mano o pídele que se registre con
+          esa dirección — su suscripción se vinculará automáticamente.
       hmac_failures:
         subject: "BTCPay: fallan las firmas del webhook"
         body: |

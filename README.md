@@ -80,6 +80,8 @@ Go to **Admin → Settings** and search for `btcpay`:
 | `btcpay_offering_id` | The Offering ID holding your plans |
 | `btcpay_webhook_secret` | The secret from step 7 above |
 | `btcpay_default_group` | Optional: one group for all plans |
+| `btcpay_send_email` | ✓ (skips BTCPay's email prompt) |
+| `btcpay_anonymous_checkout` | Optional: let logged-out visitors buy |
 | `btcpay_button_label` | blank (uses the translation) |
 
 **Plans need no configuration.** Every plan in the offering is fetched from BTCPay with its live price, and each one grants a Discourse group resolved in this order:
@@ -229,6 +231,16 @@ WHERE plugin_name = 'discourse-btcpay-subscriptions';
 ### What leaves your forum
 
 Each checkout sends BTCPay the payer's **Discourse user id and username**, and the plan id, as invoice and subscriber metadata. Nothing else — no email, no posts, no IP. BTCPay returns a customer id, plan and period data, and payment amounts, which are stored in the plugin store as described above. The only external host contacted is the one in `btcpay_server_url`.
+
+### Buying without an account
+
+Off by default. Turn on `btcpay_anonymous_checkout` and a logged-out visitor can buy: BTCPay collects their email at checkout, and when the payment settles Discourse **sends them an invite carrying the plan's group**. Accepting it creates their account with access already granted, and their subscription attaches to it automatically.
+
+Why an invite rather than creating the account outright: BTCPay does not verify that the payer owns the address they typed. An invite does — the link only works from that mailbox — so a payment can never mint an account for someone else's email, or spam your user list.
+
+If the address already belongs to a member, no invite is sent: the subscription attaches to that account and the group is granted immediately.
+
+For logged-in buyers nothing is asked at all — their Discourse email is sent with the checkout (`btcpay_send_email`, on by default), so BTCPay skips its email step.
 
 ### Manual group membership
 

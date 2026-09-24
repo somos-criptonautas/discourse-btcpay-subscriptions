@@ -80,6 +80,8 @@ Ve a **Admin → Ajustes** y busca `btcpay`:
 | `btcpay_offering_id` | El ID de la oferta que contiene tus planes |
 | `btcpay_webhook_secret` | El secreto del paso 7 |
 | `btcpay_default_group` | Opcional: un grupo para todos los planes |
+| `btcpay_send_email` | ✓ (evita que BTCPay pida el email) |
+| `btcpay_anonymous_checkout` | Opcional: permitir comprar sin sesión |
 | `btcpay_button_label` | vacío (usa la traducción) |
 | `btcpay_reconcile_interval_hours` | `4` |
 
@@ -212,6 +214,16 @@ WHERE plugin_name = 'discourse-btcpay-subscriptions';
 ### Qué sale de tu foro
 
 Cada checkout envía a BTCPay el **id de usuario y el nombre de usuario** de quien paga, y el id del plan, como metadatos de la factura y del suscriptor. Nada más — ni email, ni mensajes, ni IP. BTCPay devuelve un id de cliente, datos de plan y periodo, e importes de pago, que se guardan en el plugin store como se describe arriba. El único host externo contactado es el de `btcpay_server_url`.
+
+### Comprar sin cuenta
+
+Desactivado por defecto. Activa `btcpay_anonymous_checkout` y cualquier visitante sin sesión podrá comprar: BTCPay le pide el email en el checkout y, cuando el pago se liquida, Discourse **le envía una invitación con el grupo del plan**. Al aceptarla se crea su cuenta ya con acceso, y su suscripción se vincula sola.
+
+Por qué una invitación y no crear la cuenta directamente: BTCPay no verifica que quien paga sea el dueño de la dirección que escribió. La invitación sí — el enlace solo funciona desde ese buzón — así que un pago nunca puede crear una cuenta con el email de otra persona ni llenar tu lista de usuarios.
+
+Si la dirección ya pertenece a un miembro no se envía invitación: la suscripción se vincula a esa cuenta y el grupo se concede al momento.
+
+A quien ya ha iniciado sesión no se le pregunta nada: su email de Discourse viaja con el checkout (`btcpay_send_email`, activo por defecto) y BTCPay se salta ese paso.
 
 ### Membresía manual del grupo
 

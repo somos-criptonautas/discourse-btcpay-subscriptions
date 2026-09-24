@@ -19,6 +19,13 @@ btcpay:
     default: ""
     secret: true
     description: "Webhook secret for HMAC signature validation"
+  btcpay_anonymous_checkout:
+    default: false
+    client: true
+    description: "Let logged-out visitors buy. They enter their email at BTCPay and are invited to the forum when the payment settles."
+  btcpay_send_email:
+    default: true
+    description: "Send the buyer's Discourse email to BTCPay so they are not asked for one at checkout. Off means BTCPay prompts for an address."
   btcpay_default_group:
     default: ""
     description: "Group granted by any plan with no group of its own. Per-plan groups are set on the BTCPay admin page."
