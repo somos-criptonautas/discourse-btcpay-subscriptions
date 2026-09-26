@@ -11,8 +11,8 @@ es:
     btcpay_donation_currency: "Moneda de las donaciones"
     btcpay_donation_min: "Donación mínima"
     btcpay_donation_points: "Puntos de gamificación por unidad donada (0 = desactivado)"
-    btcpay_anonymous_checkout: "Permitir comprar sin haber iniciado sesión (se les invita por email al pagar)"
-    btcpay_send_email: "Enviar el email del comprador a BTCPay (evita que lo pida en el checkout)"
+    btcpay_anonymous_checkout: "Permitir comprar sin sesión iniciada (la invitación llega por email al pagar)"
+    btcpay_send_email: "Enviar el email de quien compra a BTCPay (evita pedirlo en el checkout)"
     btcpay_default_group: "Grupo por defecto para los planes que no tengan uno propio"
     btcpay_button_label: "Texto del botón de pago (vacío = traducción por defecto)"
     btcpay_tickets_title: "Título de /tickets (vacío = traducción por defecto)"
@@ -36,49 +36,48 @@ es:
   discourse_btcpay:
     alerts:
       invite_failed:
-        subject: "BTCPay: no se pudo invitar a un comprador"
+        subject: "BTCPay: no se pudo invitar a quien compró"
         body: |
           Alguien pagó una suscripción con el email %{email}, pero no se pudo
           enviar la invitación: %{error}
 
-          Todavía no tiene acceso. Invítale a mano o pídele que se registre con
-          esa dirección — su suscripción se vinculará automáticamente.
+          Todavía no tiene acceso. Se puede invitar a mano o pedirle que se
+          registre con esa dirección; la suscripción se vincula sola.
       hmac_failures:
         subject: "BTCPay: fallan las firmas del webhook"
         body: |
           Se han detectado %{count} fallos de HMAC consecutivos.
 
-          Comprueba que el secreto del webhook coincide entre BTCPay y el ajuste
-          `btcpay_webhook_secret`. Hasta que coincida, ningún pago podrá conceder
-          acceso.
+          El secreto del webhook tiene que coincidir entre BTCPay y el ajuste
+          `btcpay_webhook_secret`. Hasta entonces, ningún pago concede acceso.
       plan_unmapped:
         subject: "BTCPay: el plan no tiene grupo"
         body: |
           Se ha liquidado un pago del plan '%{plan_id}' (usuario %{username})
           pero ese plan no concede ningún grupo de Discourse.
 
-          Asigna uno en Admin → Plugins → BTCPay, define `discourse_group` en los
-          metadatos del plan en BTCPay, o configura un grupo por defecto.
+          Se asigna en Admin → Plugins → BTCPay, con `discourse_group` en los
+          metadatos del plan en BTCPay, o con un grupo por defecto.
       group_missing:
         subject: "BTCPay: el grupo no existe"
         body: |
-          Se intentó añadir a '%{username}' al grupo '%{group}', que no existe.
-          Créalo y usa el botón de sincronizar para conceder el acceso.
+          Se intentó agregar a '%{username}' al grupo '%{group}', que no existe.
+          Hay que crearlo y usar el botón de sincronizar para conceder el acceso.
       dispute:
         subject: "BTCPay: factura en disputa"
         body: |
           La factura %{invoice_id} fue invalidada o reembolsada para '%{username}'.
 
           %{detail}
-        retained: "Se ha mantenido el acceso al grupo, a la espera de tu revisión."
-        no_record: "No existe ningún registro local de suscripción para este usuario — no se concedió nada."
+        retained: "Se mantuvo el acceso al grupo, a la espera de revisión."
+        no_record: "No hay registro local de suscripción para esta cuenta; no se concedió nada."
       overpaid:
         subject: "BTCPay: factura pagada de más"
         body: |
-          La factura %{invoice_id} recibió más del importe debido. Puedes devolver
-          la diferencia desde la página de la factura en BTCPay.
+          La factura %{invoice_id} recibió más del importe debido. La diferencia
+          se devuelve desde la página de la factura en BTCPay.
       needs_upgrade:
-        subject: "BTCPay: el suscriptor necesita otro plan"
+        subject: "BTCPay: una suscripción necesita otro plan"
         body: |
           BTCPay indica que '%{username}' necesita mejorar su plan. No se ha
           tocado el acceso al grupo.
@@ -88,14 +87,14 @@ es:
           La factura %{invoice_id} de '%{username}' se pagó después de vencer, así
           que BTCPay no concedió nada y el dinero está sin reclamar.
 
-          Márcala como liquidada en BTCPay para respetarla, o devuélvela.
+          Se puede marcar como liquidada en BTCPay para respetarla, o devolver.
       underpaid:
         subject: "BTCPay: factura pagada de menos"
         body: |
           La factura %{invoice_id} de '%{username}' venció tras recibir solo
           %{received}. No se concedió acceso.
 
-          Devuelve el importe o complétalo desde BTCPay.
+          El importe se devuelve o se completa desde BTCPay.
         partial: "un pago parcial"
       refunded:
         subject: "BTCPay: reembolso creado"
@@ -103,7 +102,7 @@ es:
           Se ha creado un reembolso para la factura %{invoice_id} ('%{username}',
           pull payment %{pull_payment_id}).
 
-          No se ha tocado el acceso al grupo — retíralo a mano si el reembolso es
+          No se tocó el acceso al grupo; se retira a mano si el reembolso es
           definitivo.
     errors:
       not_enabled: "La integración con BTCPay no está activada."
@@ -111,10 +110,10 @@ es:
       plan_not_found: "No se encontró el plan solicitado."
       downgrade_unsupported: "Todavía no se admite el cambio a un plan más barato."
       donation_too_small: "La donación mínima es %{minimum} %{currency}."
-      badge_not_found: "Esa insignia no existe o está desactivada."
-      rate_limited: "Demasiados intentos de pago. Espera un momento e inténtalo de nuevo."
-      checkout_failed: "No se pudo crear el pago en BTCPay. Inténtalo de nuevo."
+      badge_not_found: "Ese reto no existe o está desactivado."
+      rate_limited: "Demasiados intentos de pago. Conviene esperar un momento."
+      checkout_failed: "No se pudo crear el pago en BTCPay. Volver a intentar."
       webhook_invalid_signature: "Firma del webhook inválida."
       webhook_duplicate: "La factura ya fue procesada."
-      user_not_found: "No se encontró el usuario de Discourse para esta suscripción."
+      user_not_found: "No se encontró la cuenta del foro para esta suscripción."
       group_not_found: "El grupo de destino no existe."
