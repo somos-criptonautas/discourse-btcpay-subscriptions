@@ -121,12 +121,14 @@ acceptance("BTCPay | Billing page while a payment confirms", function (needs) {
   });
 });
 
-acceptance("BTCPay | Billing tab on someone else's profile", function (needs) {
-  needs.user({ id: 99 });
+acceptance("BTCPay | Billing tab on another profile", function (needs) {
+  needs.user();
   needs.settings({ btcpay_enabled: true });
 
   needs.pretender((server, helper) => {
-    // Answered so the test fails on the guard, not on a stray request.
+    // Answered so a failure here means the guard let the tab render, not that
+    // a request went unstubbed. The endpoint only ever knows the viewer, so
+    // rendering it under someone else's name would show the wrong person.
     server.get("/btcpay/subscription", () => helper.response(subscription()));
     server.get("/user_actions.json", () =>
       helper.response({ user_actions: [] })
@@ -134,9 +136,9 @@ acceptance("BTCPay | Billing tab on someone else's profile", function (needs) {
   });
 
   test("redirects away instead of showing the viewer's own billing", async function (assert) {
-    await visit("/u/eviltrout/billing");
+    await visit("/u/charlie/billing");
 
     assert.dom(".btcpay-user-billing").doesNotExist();
-    assert.notStrictEqual(currentURL(), "/u/eviltrout/billing");
+    assert.notStrictEqual(currentURL(), "/u/charlie/billing");
   });
 });
