@@ -362,9 +362,12 @@ after_initialize do
   Discourse::Application.routes.append do
     mount DiscourseBtcpay::Engine, at: "/btcpay"
 
-    # Server-side entry points for the two client-side pages
+    # Server-side entry points for the client-side pages
     get "/tickets" => "discourse_btcpay/btcpay_pages#index"
-    get "/billing" => "discourse_btcpay/btcpay_pages#index"
+    get "/u/:username/billing" => "discourse_btcpay/btcpay_pages#index",
+        :constraints => {
+          username: RouteFormat.username,
+        }
 
     # JSON only. The admin page itself is an Ember route under
     # adminPlugins.show, so no HTML route may live at this prefix.

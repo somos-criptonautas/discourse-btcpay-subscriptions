@@ -1,4 +1,4 @@
-import { visit } from "@ember/test-helpers";
+import { currentURL, visit } from "@ember/test-helpers";
 import { test } from "qunit";
 import { acceptance } from "discourse/tests/helpers/qunit-helpers";
 
@@ -36,7 +36,7 @@ acceptance("BTCPay | Billing page", function (needs) {
   });
 
   test("shows the plan, the payment history and the portal link", async function (assert) {
-    await visit("/billing");
+    await visit("/u/eviltrout/billing");
 
     assert.dom(".btcpay-sub-card").hasClass("btcpay-status-active");
     assert.dom(".btcpay-payments-table tbody tr").exists({ count: 1 });
@@ -61,7 +61,7 @@ acceptance("BTCPay | Billing page during a trial", function (needs) {
   });
 
   test("surfaces the trial", async function (assert) {
-    await visit("/billing");
+    await visit("/u/eviltrout/billing");
 
     assert.dom(".btcpay-trial").exists();
     assert.dom(".btcpay-grace").doesNotExist();
@@ -85,7 +85,7 @@ acceptance("BTCPay | Billing page in grace", function (needs) {
   });
 
   test("warns that payment is overdue and that an upgrade is needed", async function (assert) {
-    await visit("/billing");
+    await visit("/u/eviltrout/billing");
 
     assert.dom(".btcpay-grace").exists();
     assert.dom(".btcpay-needs-upgrade").exists();
@@ -121,12 +121,14 @@ acceptance("BTCPay | Billing page while a payment confirms", function (needs) {
   });
 });
 
-acceptance("BTCPay | Billing page when anonymous", function (needs) {
+acceptance("BTCPay | Billing tab on someone else's profile", function (needs) {
+  needs.user({ id: 99 });
   needs.settings({ btcpay_enabled: true });
 
-  test("asks the visitor to log in", async function (assert) {
-    await visit("/billing");
+  test("redirects away instead of showing the viewer's own billing", async function (assert) {
+    await visit("/u/eviltrout/billing");
 
-    assert.dom(".btcpay-anon").exists();
+    assert.dom(".btcpay-user-billing").doesNotExist();
+    assert.notStrictEqual(currentURL(), "/u/eviltrout/billing");
   });
 });

@@ -29,7 +29,9 @@ discourse-btcpay-subscriptions/
 │       │   ├── btcpay-checkout.gjs             # Plan picker + BTCPay modal
 │       │   ├── btcpay-page-header.gjs          # Overridable title/intro
 │       │   └── btcpay-subscription-status.gjs
-│       ├── btcpay-route-map.js                 # /tickets and /billing
+│       ├── btcpay-route-map.js                 # /tickets
+│       ├── btcpay-user-route-map.js            # user.billing profile tab
+│       ├── routes/user-billing.js              # owner-only guard
 │       ├── lib/btcpay-text.js                  # setting override → i18n fallback
 │       ├── lib/plugin-id.js                    # directory name, keys the admin URLs
 │       ├── connectors/
@@ -37,7 +39,7 @@ discourse-btcpay-subscriptions/
 │       └── templates/
 │           ├── admin-plugins/discourse-btcpay-subscriptions.gjs
 │           ├── btcpay-tickets.gjs
-│           ├── btcpay-billing.gjs
+│           └── user/billing.gjs
 │
 ├── spec/
 │   ├── requests/{webhook,checkout}_spec.rb

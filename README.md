@@ -92,6 +92,18 @@ Go to **Admin → Settings** and search for `btcpay`:
 
 A plan that resolves to no group is listed on the admin page with a warning and is not offered for sale.
 
+### Embedding the plans in a post
+
+Wrap anything in a post with the plugin's own wrap and the plan picker renders inline, for the viewer, with their current plan already marked:
+
+```
+[wrap=btcpay-plans][/wrap]
+```
+
+Nothing else is needed — no setting, no theme component. The donations theme
+component owns the `donate*` wraps, this plugin owns `btcpay-plans`, so the two
+never collide and either can be installed without the other.
+
 ### Customising the text
 
 Every user-facing string is translated (English and Spanish ship with the plugin) and can be overridden two ways:
@@ -166,7 +178,7 @@ Not subscribed: `InvoiceCreated` (nothing to do yet) and `PaymentReminder` (BTCP
 
 ### Trials, grace periods and tier changes
 
-- **Trials and grace** come from BTCPay's subscription phase (`Trial`, `Normal`, `Grace`, `Expired`). `/billing` shows "Trial ends …" during a trial and "Payment overdue — access continues until …" during grace; access is only revoked when BTCPay reports `Expired` or disables the subscriber.
+- **Trials and grace** come from BTCPay's subscription phase (`Trial`, `Normal`, `Grace`, `Expired`). The billing tab shows "Trial ends …" during a trial and "Payment overdue — access continues until …" during grace; access is only revoked when BTCPay reports `Expired` or disables the subscriber.
 - **Payment progress**: on-chain payments take minutes to hours, so `InvoiceReceivedPayment` / `InvoicePaymentSettled` are mirrored into a short-lived record and shown live on the page — "0.0004 received via BTC — unconfirmed" — instead of leaving the payer staring at nothing. It is cleared when the invoice settles, expires or is invalidated.
 - **Upgrades**: a subscriber picking a more expensive plan gets a checkout with `onPayBehavior: HardMigration`, so the new tier starts immediately and BTCPay refunds the unused part of the old one. The new plan's group is added on `PlanStarted`.
 - **Downgrades are not implemented yet**: the cheaper plan is shown but not selectable, and the server rejects it with 422 even if the client is bypassed. Prices are compared against BTCPay's own plan prices, never the client's.
@@ -187,7 +199,7 @@ Not subscribed: `InvoiceCreated` (nothing to do yet) and `PaymentReminder` (BTCP
 3. Clicks **Pay with crypto** → BTCPay's checkout opens in a modal over the page; the user never leaves Discourse
 4. Pays with any method the store accepts (BTC, XMR, LTC, Lightning, …)
 5. `InvoiceProcessing` marks the subscription pending; the page polls and flips to "Payment received" once `InvoiceSettled` grants the group
-6. Status and payment history live at `/billing`, also linked from the user profile nav
+6. Status and payment history live on the profile's **Billing** tab (`/u/<username>/billing`), linked from the profile nav
 7. On renewal: BTCPay sends the reminder → user pays → access continues. On lapse: webhook fires → user removed from group
 
 If the modal script cannot load (CSP, offline BTCPay asset host), the button falls back to a full redirect to BTCPay and back to `btcpay_redirect_after_checkout`.
@@ -266,7 +278,7 @@ Donations grant no group and never touch subscriptions.
 
 Adding a user to a plan's group by hand grants access immediately — Discourse groups are what gate content, and the plugin never revokes a member it has no record for. The reconcile job only walks its own subscription records, so hand-granted members are left alone forever.
 
-The flip side: `/billing` shows such a user nothing, because there is no subscription behind it. Use manual membership for comps and staff; use a BTCPay plan for anything that should renew or expire on its own.
+The flip side: the billing tab shows such a user nothing, because there is no subscription behind it. Use manual membership for comps and staff; use a BTCPay plan for anything that should renew or expire on its own.
 
 ### BTCPay reverse proxy
 
@@ -459,4 +471,6 @@ English and Spanish ship with the plugin (`config/locales/{client,server}.{en,es
 
 ## License
 
-MIT
+GPL-3.0. See [LICENSE](LICENSE).
+
+Text of this README under [CC BY-NC-SA 4.0](CC-BY-NC-SA-4.0.txt).

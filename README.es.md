@@ -93,6 +93,18 @@ Ve a **Admin → Ajustes** y busca `btcpay`:
 
 Un plan que no resuelva a ningún grupo aparece con un aviso en la página de admin y no se pone a la venta.
 
+### Insertar los planes en una publicación
+
+Envuelve cualquier cosa en una publicación con el wrap del plugin y el selector de planes se renderiza ahí mismo, para quien lo lee y con su plan actual ya marcado:
+
+```
+[wrap=btcpay-plans][/wrap]
+```
+
+No hace falta nada más: ni ajuste ni componente de tema. El componente de
+donaciones se encarga de los wraps `donate*` y este plugin de `btcpay-plans`,
+así que nunca chocan y cualquiera de los dos funciona sin el otro.
+
 ### Personalizar los textos
 
 Todos los textos visibles están traducidos (el plugin incluye inglés y español) y se pueden sobrescribir de dos formas:
@@ -148,7 +160,7 @@ Sin suscribir: `InvoiceCreated` (aún no hay nada que hacer) y `PaymentReminder`
 
 ### Pruebas, periodo de gracia y cambios de plan
 
-- **Pruebas y gracia** vienen de la fase de la suscripción en BTCPay (`Trial`, `Normal`, `Grace`, `Expired`). `/billing` muestra "La prueba termina el …" y "Pago pendiente — el acceso continúa hasta el …"; el acceso solo se retira cuando BTCPay informa `Expired` o desactiva al suscriptor.
+- **Pruebas y gracia** vienen de la fase de la suscripción en BTCPay (`Trial`, `Normal`, `Grace`, `Expired`). La pestaña de facturación muestra "La prueba termina el …" y "Pago pendiente — el acceso continúa hasta el …"; el acceso solo se retira cuando BTCPay informa `Expired` o desactiva al suscriptor.
 - **Progreso del pago**: los pagos on-chain tardan de minutos a horas, así que `InvoiceReceivedPayment` / `InvoicePaymentSettled` se reflejan en un registro temporal y se muestran en vivo — "0.0004 recibidos por BTC — sin confirmar" — en lugar de dejar al pagador sin información. Se limpia cuando la factura se liquida, vence o se invalida.
 - **Mejoras de plan**: al elegir un plan más caro se crea el checkout con `onPayBehavior: HardMigration`, de modo que el nuevo plan empieza de inmediato y BTCPay reembolsa la parte no usada del anterior. El grupo nuevo se añade con `PlanStarted`.
 - **Bajar de plan aún no está implementado**: el plan más barato se muestra pero no se puede seleccionar, y el servidor lo rechaza con 422 aunque se salte el cliente. Los precios se comparan con los de BTCPay, nunca con los del cliente.
@@ -170,7 +182,7 @@ Sin suscribir: `InvoiceCreated` (aún no hay nada que hacer) y `PaymentReminder`
 3. Pulsa **Pagar en cripto** → el checkout de BTCPay se abre en un modal sobre la página; no sale de Discourse
 4. Paga con cualquier método que acepte la tienda (BTC, XMR, LTC, Lightning…)
 5. `InvoiceProcessing` marca la suscripción como pendiente; la página consulta el estado y muestra "Pago recibido" cuando `InvoiceSettled` concede el grupo
-6. El estado y el historial de pagos están en `/billing`, también enlazado desde el perfil
+6. El estado y el historial de pagos están en la pestaña **Facturación** del perfil (`/u/<usuario>/billing`), enlazada desde el menú del perfil
 7. Renovación: BTCPay envía el aviso → paga → mantiene el acceso. Impago: llega el webhook → sale del grupo
 
 Si el script del modal no puede cargarse (CSP, host de BTCPay caído), el botón recurre a la redirección completa a BTCPay y de vuelta a `btcpay_redirect_after_checkout`.
@@ -249,7 +261,7 @@ Las donaciones no conceden ningún grupo ni tocan las suscripciones.
 
 Añadir a mano un usuario al grupo de un plan concede el acceso de inmediato — los grupos de Discourse son lo que protege el contenido, y el plugin nunca retira a un miembro del que no tiene registro. La reconciliación solo recorre sus propias suscripciones, así que a los miembros añadidos a mano no los toca nunca.
 
-La contrapartida: `/billing` no le mostrará nada a ese usuario, porque no hay suscripción detrás. Usa la membresía manual para invitaciones y staff; usa un plan de BTCPay para todo lo que deba renovarse o caducar solo.
+La contrapartida: la pestaña de facturación no le mostrará nada a ese usuario, porque no hay suscripción detrás. Usa la membresía manual para invitaciones y staff; usa un plan de BTCPay para todo lo que deba renovarse o caducar solo.
 
 ### Proxy inverso de BTCPay
 
@@ -440,4 +452,6 @@ El plugin incluye inglés y español (`config/locales/{client,server}.{en,es}.ym
 
 ## Licencia
 
-MIT
+GPL-3.0. Consulta [LICENSE](LICENSE).
+
+Texto de este README bajo [CC BY-NC-SA 4.0](CC-BY-NC-SA-4.0.txt).

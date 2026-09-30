@@ -63,11 +63,11 @@ btcpay:
   btcpay_billing_title:
     default: ""
     client: true
-    description: "Heading on the /billing page. Blank uses the translated default."
+    description: "Heading on the profile billing tab. Blank uses the translated default."
   btcpay_billing_intro:
     default: ""
     client: true
-    description: "Intro paragraph on /billing. Blank uses the translated default."
+    description: "Intro paragraph on the billing tab. Blank uses the translated default."
   btcpay_nav_label:
     default: ""
     client: true
@@ -78,6 +78,6 @@ btcpay:
     max: 168
     description: "How often the reconciliation job runs (in hours)"
   btcpay_redirect_after_checkout:
-    default: "/billing"
+    default: "/my/billing"
     client: true
     description: "Discourse path to redirect to after BTCPay checkout"

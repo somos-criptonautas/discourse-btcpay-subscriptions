@@ -49,8 +49,8 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
     )
   end
 
-  it "serves /tickets and /billing so a direct visit does not 404" do
-    %w[/tickets /billing].each do |path|
+  it "serves the pages so a direct visit does not 404" do
+    ["/tickets", "/u/#{user.username}/billing"].each do |path|
       get path
 
       expect(response.status).to eq(200)
