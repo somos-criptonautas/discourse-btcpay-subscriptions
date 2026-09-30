@@ -126,7 +126,8 @@ acceptance("BTCPay | Billing tab on someone else's profile", function (needs) {
   needs.settings({ btcpay_enabled: true });
 
   needs.pretender((server, helper) => {
-    // The guard redirects to the activity stream, which has to answer.
+    // Answered so the test fails on the guard, not on a stray request.
+    server.get("/btcpay/subscription", () => helper.response(subscription()));
     server.get("/user_actions.json", () =>
       helper.response({ user_actions: [] })
     );
