@@ -125,6 +125,13 @@ acceptance("BTCPay | Billing tab on someone else's profile", function (needs) {
   needs.user({ id: 99 });
   needs.settings({ btcpay_enabled: true });
 
+  needs.pretender((server, helper) => {
+    // The guard redirects to the activity stream, which has to answer.
+    server.get("/user_actions.json", () =>
+      helper.response({ user_actions: [] })
+    );
+  });
+
   test("redirects away instead of showing the viewer's own billing", async function (assert) {
     await visit("/u/eviltrout/billing");
 

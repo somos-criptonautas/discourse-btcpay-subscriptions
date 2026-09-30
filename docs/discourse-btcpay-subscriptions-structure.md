@@ -31,7 +31,7 @@ discourse-btcpay-subscriptions/
 │       │   └── btcpay-subscription-status.gjs
 │       ├── btcpay-route-map.js                 # /tickets
 │       ├── btcpay-user-route-map.js            # user.billing profile tab
-│       ├── routes/user-billing.js              # owner-only guard
+│       ├── routes/user/billing.js               # owner-only guard
 │       ├── lib/btcpay-text.js                  # setting override → i18n fallback
 │       ├── lib/plugin-id.js                    # directory name, keys the admin URLs
 │       ├── connectors/
