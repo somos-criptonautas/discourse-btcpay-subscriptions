@@ -18,6 +18,11 @@ All notable changes to this plugin. Versions follow the `version:` field in
   (`sidebar_user_navigation`), which replaces the horizontal profile nav and
   cannot see plugin outlets.
 
+### Changed
+- The billing tab uses the core `ticket` icon, not `credit-card` — nothing here
+  is paid by card. Both icons the plugin uses (`ticket`, `bitcoin-sign`) are now
+  registered, so they stop rendering blank, and an icon theme can redirect them.
+
 ### Removed
 - The forced sidebar link. `/tickets` is still there, but where it is linked
   from is now the forum's decision — a post embed, a menu item, a topic link.
@@ -75,6 +80,11 @@ All notable changes to this plugin. Versions follow the `version:` field in
   progress, admin dashboard plans table and missing-settings warning, and unit
   coverage for the setting-override text helper. CI now runs a `frontend` job
   in addition to the backend one.
+
+### Changed
+- The billing tab uses the core `ticket` icon, not `credit-card` — nothing here
+  is paid by card. Both icons the plugin uses (`ticket`, `bitcoin-sign`) are now
+  registered, so they stop rendering blank, and an icon theme can redirect them.
 
 ### Removed
 - The `btcpay_plan_mappings` JSON setting. Plan → group is now set in the UI.

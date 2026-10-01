@@ -12,8 +12,9 @@ enabled_site_setting :btcpay_enabled
 register_asset "stylesheets/btcpay.scss"
 
 # Neither is in Discourse's default icon subset, so they have to be requested
-# or the billing tab and the admin plugin list render a blank glyph.
-register_svg_icon "credit-card"
+# or the billing tab and the admin plugin list render a blank glyph. Plain core
+# names, so an icon theme can redirect them to its own set.
+register_svg_icon "ticket"
 register_svg_icon "bitcoin-sign"
 
 # The location is the plugin directory name, so the admin plugin list links

@@ -28,7 +28,7 @@ export default class BtcpayBillingLink extends Component {
     {{#if this.isVisible}}
       <li class="btcpay-billing-nav">
         <LinkTo @route="user.billing">
-          {{icon "credit-card"}}
+          {{icon "ticket"}}
           <span>{{this.label}}</span>
         </LinkTo>
       </li>
