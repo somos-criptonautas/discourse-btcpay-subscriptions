@@ -12,6 +12,9 @@ All notable changes to this plugin. Versions follow the `version:` field in
   `/my/billing`, which Discourse redirects to the buyer's own tab.
 - `[wrap=btcpay-plans]` in a post renders the plan picker inline, so plans can
   be offered from an announcement topic.
+- The billing tab is also registered with core's user nav sidebar panel
+  (`sidebar_user_navigation`), which replaces the horizontal profile nav and
+  cannot see plugin outlets.
 
 ### Removed
 - The forced sidebar link. `/tickets` is still there, but where it is linked
