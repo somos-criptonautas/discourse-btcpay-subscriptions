@@ -11,6 +11,11 @@ enabled_site_setting :btcpay_enabled
 
 register_asset "stylesheets/btcpay.scss"
 
+# Neither is in Discourse's default icon subset, so they have to be requested
+# or the billing tab and the admin plugin list render a blank glyph.
+register_svg_icon "credit-card"
+register_svg_icon "bitcoin-sign"
+
 # The location is the plugin directory name, so the admin plugin list links
 # straight to our dashboard at /admin/plugins/discourse-btcpay-subscriptions.
 add_admin_route "btcpay.admin.title", "discourse-btcpay-subscriptions"

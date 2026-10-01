@@ -58,6 +58,7 @@ export default class BtcpayCheckout extends Component {
   @tracked currentPlanId = null;
   @tracked currentPrice = null;
   @tracked progress = null;
+  @tracked currentLoaded = false;
 
   pollTimer = null;
   pollCount = 0;
@@ -68,6 +69,7 @@ export default class BtcpayCheckout extends Component {
     if (this.isVisible && !this.isAnonymous) {
       this.load();
     } else if (this.isVisible) {
+      this.currentLoaded = true;
       this.loadPlans();
     }
   }
@@ -85,6 +87,20 @@ export default class BtcpayCheckout extends Component {
   // needs an account, and BTCPay never has to ask them anything.
   get isVisible() {
     return this.siteSettings.btcpay_enabled;
+  }
+
+  // On the billing tab the picker is an offer to subscribe, so it steps aside
+  // for a subscriber — and stays away until we know, rather than flashing the
+  // plans at someone who already has one.
+  get isHidden() {
+    return (
+      this.args.onlyWithoutSubscription &&
+      (!this.currentLoaded || this.currentPlanId)
+    );
+  }
+
+  get shouldRender() {
+    return this.isVisible && !this.isHidden;
   }
 
   get isAnonymous() {
@@ -163,6 +179,8 @@ export default class BtcpayCheckout extends Component {
       }
     } catch {
       // Not fatal — the user can still start a checkout.
+    } finally {
+      this.currentLoaded = true;
     }
   }
 
@@ -275,7 +293,7 @@ export default class BtcpayCheckout extends Component {
   }
 
   <template>
-    {{#if this.isVisible}}
+    {{#if this.shouldRender}}
       <div class="btcpay-checkout-section">
         {{#if this.settled}}
           <div class="btcpay-settled alert alert-success">

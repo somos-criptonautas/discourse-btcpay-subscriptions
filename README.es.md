@@ -186,7 +186,7 @@ Sin suscribir: `InvoiceCreated` (aún no hay nada que hacer) y `PaymentReminder`
 3. Pulsa **Pagar en cripto** → el checkout de BTCPay se abre en un modal sobre la página; no sale de Discourse
 4. Paga con cualquier método que acepte la tienda (BTC, XMR, LTC, Lightning…)
 5. `InvoiceProcessing` marca la suscripción como pendiente; la página consulta el estado y muestra "Pago recibido" cuando `InvoiceSettled` concede el grupo
-6. El estado y el historial de pagos están en la pestaña **Facturación** del perfil (`/u/<usuario>/billing`), enlazada desde el menú del perfil
+6. El estado y el historial de pagos están en la pestaña **Facturación** del perfil (`/u/<usuario>/billing`), enlazada desde el menú del perfil; sin suscripción activa esa pestaña ofrece los planes
 7. Renovación: BTCPay envía el aviso → paga → mantiene el acceso. Impago: llega el webhook → sale del grupo
 
 Si el script del modal no puede cargarse (CSP, host de BTCPay caído), el botón recurre a la redirección completa a BTCPay y de vuelta a `btcpay_redirect_after_checkout`.

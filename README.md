@@ -202,7 +202,7 @@ Not subscribed: `InvoiceCreated` (nothing to do yet) and `PaymentReminder` (BTCP
 3. Clicks **Pay with crypto** → BTCPay's checkout opens in a modal over the page; the user never leaves Discourse
 4. Pays with any method the store accepts (BTC, XMR, LTC, Lightning, …)
 5. `InvoiceProcessing` marks the subscription pending; the page polls and flips to "Payment received" once `InvoiceSettled` grants the group
-6. Status and payment history live on the profile's **Billing** tab (`/u/<username>/billing`), linked from the profile nav
+6. Status and payment history live on the profile's **Billing** tab (`/u/<username>/billing`), linked from the profile nav; with no active subscription that tab offers the plans instead
 7. On renewal: BTCPay sends the reminder → user pays → access continues. On lapse: webhook fires → user removed from group
 
 If the modal script cannot load (CSP, offline BTCPay asset host), the button falls back to a full redirect to BTCPay and back to `btcpay_redirect_after_checkout`.

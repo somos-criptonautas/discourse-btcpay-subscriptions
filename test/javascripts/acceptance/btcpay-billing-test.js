@@ -2,6 +2,19 @@ import { currentURL, visit } from "@ember/test-helpers";
 import { test } from "qunit";
 import { acceptance } from "discourse/tests/helpers/qunit-helpers";
 
+const PLANS = {
+  plans: [
+    {
+      plan_id: "plan-1",
+      label: "Premium",
+      group_name: "premium",
+      price: "10",
+      currency: "USD",
+      interval: "Monthly",
+    },
+  ],
+};
+
 function subscription(overrides = {}) {
   return {
     subscription: {
@@ -32,6 +45,7 @@ acceptance("BTCPay | Billing page", function (needs) {
   needs.settings({ btcpay_enabled: true });
 
   needs.pretender((server, helper) => {
+    server.get("/btcpay/plans", () => helper.response(PLANS));
     server.get("/btcpay/subscription", () => helper.response(subscription()));
   });
 
@@ -45,6 +59,9 @@ acceptance("BTCPay | Billing page", function (needs) {
       .dom(".btcpay-payments-table tbody td:nth-child(4)")
       .hasText("settled", "payment status is translated, not raw");
     assert.dom(".btcpay-portal-link").hasAttribute("target", "_blank");
+    assert
+      .dom(".btcpay-checkout-section")
+      .doesNotExist("a subscriber is not offered the plans again");
   });
 });
 
@@ -53,6 +70,7 @@ acceptance("BTCPay | Billing page during a trial", function (needs) {
   needs.settings({ btcpay_enabled: true });
 
   needs.pretender((server, helper) => {
+    server.get("/btcpay/plans", () => helper.response(PLANS));
     server.get("/btcpay/subscription", () =>
       helper.response(
         subscription({ phase: "Trial", trial_end: "2026-10-05T00:00:00Z" })
@@ -73,6 +91,7 @@ acceptance("BTCPay | Billing page in grace", function (needs) {
   needs.settings({ btcpay_enabled: true });
 
   needs.pretender((server, helper) => {
+    server.get("/btcpay/plans", () => helper.response(PLANS));
     server.get("/btcpay/subscription", () =>
       helper.response(
         subscription({
@@ -140,5 +159,30 @@ acceptance("BTCPay | Billing tab on another profile", function (needs) {
 
     assert.dom(".btcpay-user-billing").doesNotExist();
     assert.notStrictEqual(currentURL(), "/u/charlie/billing");
+  });
+});
+
+acceptance("BTCPay | Billing tab without a subscription", function (needs) {
+  needs.user();
+  needs.settings({ btcpay_enabled: true });
+
+  needs.pretender((server, helper) => {
+    server.get("/btcpay/plans", () => helper.response(PLANS));
+    server.get("/btcpay/subscription", () =>
+      helper.response({
+        subscription: null,
+        payments: [],
+        payment_progress: null,
+        portal_url: null,
+      })
+    );
+  });
+
+  test("offers the plans to subscribe to", async function (assert) {
+    await visit("/u/eviltrout/billing");
+
+    assert.dom(".btcpay-no-sub").exists();
+    assert.dom(".btcpay-checkout-section .btcpay-plan").exists({ count: 1 });
+    assert.dom(".btcpay-checkout-btn").exists();
   });
 });
