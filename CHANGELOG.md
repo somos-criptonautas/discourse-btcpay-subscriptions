@@ -3,9 +3,20 @@
 All notable changes to this plugin. Versions follow the `version:` field in
 `plugin.rb`; each entry names anything an operator has to do by hand.
 
-## Unreleased
+## 1.0.0 — 2026-09-30
 
 ### Added
+- Billing lives on the user profile as a **Billing** tab (`/u/<username>/billing`),
+  the way Discourse's own subscriptions plugin does it. The old top-level
+  `/billing` page is gone; `btcpay_redirect_after_checkout` now points at
+  `/my/billing`, which Discourse redirects to the buyer's own tab.
+- `[wrap=btcpay-plans]` in a post renders the plan picker inline, so plans can
+  be offered from an announcement topic.
+
+### Removed
+- The forced sidebar link. `/tickets` is still there, but where it is linked
+  from is now the forum's decision — a post embed, a menu item, a topic link.
+
 - One-off donations through a BTCPay Point of Sale app: `POST /btcpay/donate`
   creates the invoice with a server-generated order id, the existing webhook
   attributes the settled payment, and `GET /btcpay/donations` serves totals and

@@ -71,7 +71,7 @@ btcpay:
   btcpay_nav_label:
     default: ""
     client: true
-    description: "Sidebar and profile link text. Blank uses the translated default."
+    description: "Profile billing tab label. Blank uses the translated default."
   btcpay_reconcile_interval_hours:
     default: 4
     min: 1

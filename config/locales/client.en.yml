@@ -23,7 +23,6 @@ en:
 
       tickets:
         title: "Tickets"
-        nav_label: "Tickets"
         intro: "Pay with crypto through BTCPay Server. Access is granted as soon as the payment settles."
 
       checkout:

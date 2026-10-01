@@ -105,6 +105,10 @@ No hace falta nada más: ni ajuste ni componente de tema. El componente de
 donaciones se encarga de los wraps `donate*` y este plugin de `btcpay-plans`,
 así que nunca chocan y cualquiera de los dos funciona sin el otro.
 
+El plugin no agrega ningún enlace a la barra lateral: enlaza `/tickets` donde
+corresponda en tu foro, o inserta el selector en un tema fijado y olvídate de
+la página.
+
 ### Personalizar los textos
 
 Todos los textos visibles están traducidos (el plugin incluye inglés y español) y se pueden sobrescribir de dos formas:
@@ -177,7 +181,7 @@ Sin suscribir: `InvoiceCreated` (aún no hay nada que hacer) y `PaymentReminder`
 
 ### Flujo del usuario
 
-1. El usuario abre `/tickets` (enlazado desde la barra lateral)
+1. El usuario abre `/tickets`, o una publicación con el selector de planes insertado
 2. Elige un plan — el precio mostrado es el que cobra BTCPay, consultado en vivo y cacheado 10 minutos
 3. Pulsa **Pagar en cripto** → el checkout de BTCPay se abre en un modal sobre la página; no sale de Discourse
 4. Paga con cualquier método que acepte la tienda (BTC, XMR, LTC, Lightning…)

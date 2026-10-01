@@ -2,11 +2,19 @@ import Component from "@glimmer/component";
 import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
 import icon from "discourse/helpers/d-icon";
-import { i18n } from "discourse-i18n";
+import { btcpayText } from "../../lib/btcpay-text";
 
 export default class BtcpayBillingLink extends Component {
   @service siteSettings;
   @service currentUser;
+
+  get label() {
+    return btcpayText(
+      this.siteSettings,
+      "btcpay_nav_label",
+      "btcpay.billing.nav_label"
+    );
+  }
 
   // Only on your own profile — the tab always shows the viewer's own data.
   get isVisible() {
@@ -21,7 +29,7 @@ export default class BtcpayBillingLink extends Component {
       <li class="btcpay-billing-nav">
         <LinkTo @route="user.billing">
           {{icon "credit-card"}}
-          <span>{{i18n "btcpay.billing.nav_label"}}</span>
+          <span>{{this.label}}</span>
         </LinkTo>
       </li>
     {{/if}}

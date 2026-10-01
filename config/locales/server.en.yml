@@ -19,7 +19,7 @@ en:
     btcpay_tickets_intro: "Intro on /tickets (blank = translated default)"
     btcpay_billing_title: "Heading on the profile billing tab (blank = translated default)"
     btcpay_billing_intro: "Intro on the billing tab (blank = translated default)"
-    btcpay_nav_label: "Navigation link text (blank = translated default)"
+    btcpay_nav_label: "Profile billing tab label (blank = translated default)"
     btcpay_reconcile_interval_hours: "Reconciliation job interval (hours)"
     btcpay_redirect_after_checkout: "Redirect path after BTCPay checkout"
 

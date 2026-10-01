@@ -19,7 +19,7 @@ es:
     btcpay_tickets_intro: "Introducción de /tickets (vacío = traducción por defecto)"
     btcpay_billing_title: "Título de la pestaña de facturación (vacío = traducción por defecto)"
     btcpay_billing_intro: "Introducción de la pestaña de facturación (vacío = traducción por defecto)"
-    btcpay_nav_label: "Texto del enlace de navegación (vacío = traducción por defecto)"
+    btcpay_nav_label: "Texto de la pestaña de facturación (vacío = traducción por defecto)"
     btcpay_reconcile_interval_hours: "Intervalo de la tarea de reconciliación (horas)"
     btcpay_redirect_after_checkout: "Ruta de redirección tras el pago en BTCPay"
 

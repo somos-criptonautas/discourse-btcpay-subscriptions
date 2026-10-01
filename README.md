@@ -104,6 +104,9 @@ Nothing else is needed — no setting, no theme component. The donations theme
 component owns the `donate*` wraps, this plugin owns `btcpay-plans`, so the two
 never collide and either can be installed without the other.
 
+The plugin adds no sidebar link of its own: link `/tickets` wherever it belongs
+on your forum, or embed the picker in a pinned topic and skip the page.
+
 ### Customising the text
 
 Every user-facing string is translated (English and Spanish ship with the plugin) and can be overridden two ways:
@@ -194,7 +197,7 @@ Not subscribed: `InvoiceCreated` (nothing to do yet) and `PaymentReminder` (BTCP
 
 ### User Flow
 
-1. User opens `/tickets` (linked from the sidebar)
+1. User opens `/tickets`, or a post with the plan picker embedded in it
 2. Picks a plan — the price shown is the fiat price BTCPay charges, fetched live and cached for 10 minutes
 3. Clicks **Pay with crypto** → BTCPay's checkout opens in a modal over the page; the user never leaves Discourse
 4. Pays with any method the store accepts (BTC, XMR, LTC, Lightning, …)

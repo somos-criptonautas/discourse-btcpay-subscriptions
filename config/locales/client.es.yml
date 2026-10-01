@@ -23,7 +23,6 @@ es:
 
       tickets:
         title: "Entradas"
-        nav_label: "Entradas"
         intro: "Pago en cripto a través de BTCPay Server. El acceso se concede apenas se confirma el pago."
 
       checkout:

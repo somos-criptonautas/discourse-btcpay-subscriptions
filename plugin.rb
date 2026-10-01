@@ -2,7 +2,7 @@
 
 # name: discourse-btcpay-subscriptions
 # about: BTCPay Server subscription integration for Discourse
-# version: 0.1.0
+# version: 1.0.0
 # authors: Criptonautas
 # url: https://github.com/somos-criptonautas/discourse-btcpay-subscriptions
 # required_version: 3.4.0
