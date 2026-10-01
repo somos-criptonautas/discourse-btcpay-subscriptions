@@ -23,7 +23,7 @@ export default {
       api.addUserNavSidebarLink?.("profile", {
         name: "btcpay-billing",
         route: "user.billing",
-        icon: "ticket",
+        icon: "ticket-simple",
         label: "btcpay.billing.nav_label",
         text: ({ siteSettings: settings }) =>
           btcpayText(settings, "btcpay_nav_label", "btcpay.billing.nav_label"),
