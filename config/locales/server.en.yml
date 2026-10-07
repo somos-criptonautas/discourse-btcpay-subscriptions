@@ -12,6 +12,7 @@ en:
     btcpay_donation_min: "Minimum donation"
     btcpay_donation_points: "Gamification points per unit donated (0 = off)"
     btcpay_anonymous_checkout: "Allow logged-out visitors to buy (they are invited by email once paid)"
+    btcpay_card_payments: "Offer card payments through the BTCPay Stripe plugin"
     btcpay_send_email: "Send the buyer's email to BTCPay (skips the email prompt at checkout)"
     btcpay_default_group: "Default group for plans with no group of their own"
     btcpay_button_label: "Payment button text (blank = translated default)"

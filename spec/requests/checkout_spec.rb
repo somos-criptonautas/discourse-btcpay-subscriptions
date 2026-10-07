@@ -106,6 +106,34 @@ describe DiscourseBtcpay::BtcpayCheckoutController do
       )
     end
 
+    context "when paying by card" do
+      before do
+        stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
+          .to_return(status: 200, body: checkout_response.to_json)
+      end
+
+      it "opens the invoice on the Stripe payment method, without the modal" do
+        SiteSetting.btcpay_card_payments = true
+
+        post "/btcpay/checkout.json", params: { plan_id: "plan-1", payment_method: "card" }
+
+        expect(response.status).to eq(200)
+        expect(response.parsed_body["checkout_url"]).to eq(
+          "https://btcpay.example.com/i/INV9/STRIPE"
+        )
+        expect(response.parsed_body["modal_url"]).to be_nil
+      end
+
+      it "ignores the card choice when card payments are off" do
+        SiteSetting.btcpay_card_payments = false
+
+        post "/btcpay/checkout.json", params: { plan_id: "plan-1", payment_method: "card" }
+
+        expect(response.parsed_body["checkout_url"]).to eq("https://btcpay.example.com/i/INV9")
+        expect(response.parsed_body["modal_url"]).to be_present
+      end
+    end
+
     it "reports a plan that credit already covered, with nothing to pay" do
       stub_request(:post, "https://btcpay.example.com/api/v1/plan-checkout")
         .to_return(status: 200, body: checkout_response.except(:invoiceId).to_json)

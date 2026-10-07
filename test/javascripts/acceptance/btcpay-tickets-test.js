@@ -1,4 +1,4 @@
-import { visit } from "@ember/test-helpers";
+import { click, visit } from "@ember/test-helpers";
 import { test } from "qunit";
 import { acceptance } from "discourse/tests/helpers/qunit-helpers";
 
@@ -111,5 +111,49 @@ acceptance("BTCPay | Tickets page when disabled", function (needs) {
     await visit("/tickets");
 
     assert.dom(".btcpay-checkout-section").doesNotExist();
+  });
+});
+
+acceptance("BTCPay | Tickets page with card payments", function (needs) {
+  needs.user();
+  needs.settings({ btcpay_enabled: true, btcpay_card_payments: true });
+
+  let checkoutBody;
+
+  needs.pretender((server, helper) => {
+    server.get("/btcpay/plans", () => helper.response(PLANS));
+    server.get("/btcpay/subscription", () => noSubscription(helper));
+    server.post("/btcpay/checkout", (request) => {
+      checkoutBody = new URLSearchParams(request.requestBody);
+      return helper.response({ error: "stop here" }, 422);
+    });
+  });
+
+  test("offers a card button that asks for a card checkout", async function (assert) {
+    await visit("/tickets");
+
+    assert.dom(".btcpay-card-btn").exists();
+
+    await click(".btcpay-plan:first-of-type .btcpay-plan__radio");
+    await click(".btcpay-card-btn");
+
+    assert.strictEqual(checkoutBody.get("plan_id"), "plan-1");
+    assert.strictEqual(checkoutBody.get("payment_method"), "card");
+  });
+});
+
+acceptance("BTCPay | Tickets page without card payments", function (needs) {
+  needs.user();
+  needs.settings({ btcpay_enabled: true });
+
+  needs.pretender((server, helper) => {
+    server.get("/btcpay/plans", () => helper.response(PLANS));
+    server.get("/btcpay/subscription", () => noSubscription(helper));
+  });
+
+  test("hides the card button", async function (assert) {
+    await visit("/tickets");
+
+    assert.dom(".btcpay-card-btn").doesNotExist();
   });
 });

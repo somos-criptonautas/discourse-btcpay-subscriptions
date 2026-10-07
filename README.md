@@ -82,6 +82,7 @@ Go to **Admin → Settings** and search for `btcpay`:
 | `btcpay_default_group` | Optional: one group for all plans |
 | `btcpay_send_email` | ✓ (skips BTCPay's email prompt) |
 | `btcpay_anonymous_checkout` | Optional: let logged-out visitors buy |
+| `btcpay_card_payments` | Optional: add a "Pay with card" button (needs BTCPay's Stripe plugin) |
 | `btcpay_button_label` | blank (uses the translation) |
 
 **Plans need no configuration.** Every plan in the offering is fetched from BTCPay with its live price, and each one grants a Discourse group resolved in this order:
@@ -256,6 +257,14 @@ Why an invite rather than creating the account outright: BTCPay does not verify 
 If the address already belongs to a member, no invite is sent: the subscription attaches to that account and the group is granted immediately.
 
 For logged-in buyers nothing is asked at all — their Discourse email is sent with the checkout (`btcpay_send_email`, on by default), so BTCPay skips its email step.
+
+### Paying by card
+
+Off by default. Install the [Stripe plugin](https://plugin-builder.btcpayserver.org/public/plugins/stripe-payments) on BTCPay, enable it on the store, then turn on `btcpay_card_payments`. The checkout gets a second button, **Pay with card**, next to the crypto one.
+
+Both buttons create the same subscription invoice; the card button only opens it at `/i/<invoice>/STRIPE`, so BTCPay shows the Stripe form first. The payer can still switch method on that page. Card checkouts open BTCPay's full page rather than the overlay, which cannot be pointed at a payment method. Settlement, webhooks and group access are unchanged.
+
+Renewals are still one invoice per period: the card is not stored and charged automatically.
 
 ### Donations
 

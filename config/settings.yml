@@ -41,6 +41,10 @@ btcpay:
     default: false
     client: true
     description: "Let logged-out visitors buy. They enter their email at BTCPay and are invited to the forum when the payment settles."
+  btcpay_card_payments:
+    default: false
+    client: true
+    description: "Offer a card button that opens the BTCPay invoice on the Stripe payment method. Needs the Stripe plugin enabled on the BTCPay store."
   btcpay_send_email:
     default: true
     description: "Send the buyer's Discourse email to BTCPay so they are not asked for one at checkout. Off means BTCPay prompts for an address."

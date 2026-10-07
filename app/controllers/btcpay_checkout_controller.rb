@@ -4,11 +4,14 @@ module DiscourseBtcpay
   class BtcpayCheckoutController < ::ApplicationController
     requires_plugin DiscourseBtcpay::PLUGIN_NAME
 
+    # The payment method id the BTCPay Stripe plugin registers
+    STRIPE_PAYMENT_METHOD = "STRIPE"
+
     before_action :ensure_can_buy
     before_action :ensure_btcpay_configured
 
     # POST /btcpay/checkout
-    # Body: { plan_id: "xxx" }
+    # Body: { plan_id: "xxx", payment_method: "card" (optional) }
     def create
       # Anonymous buyers have no account to limit, so limit the address
       limit_key = current_user ? "btcpay-checkout" : "btcpay-checkout-#{request.ip}"
@@ -68,9 +71,11 @@ module DiscourseBtcpay
         return render json: { plan_started: true }
       end
 
+      card = card_payment?
+
       checkout_url =
         if invoice_id.present?
-          api.invoice_url(invoice_id)
+          api.invoice_url(invoice_id, card ? STRIPE_PAYMENT_METHOD : nil)
         else
           public_checkout_url(result["url"] || result["redirectUrl"])
         end
@@ -82,10 +87,12 @@ module DiscourseBtcpay
 
       # invoice_id + modal_url let the client open BTCPay's overlay; the
       # checkout_url is the fallback when the modal script can't load.
+      # The overlay can't be pointed at a payment method, so card goes
+      # straight to the checkout page.
       render json: {
         checkout_url: checkout_url,
         invoice_id: invoice_id,
-        modal_url: "#{SiteSetting.btcpay_server_url.chomp("/")}/modal/btcpay.js",
+        modal_url: card ? nil : "#{SiteSetting.btcpay_server_url.chomp("/")}/modal/btcpay.js",
         plan_started: false
       }
     rescue RateLimiter::LimitExceeded
@@ -150,6 +157,10 @@ module DiscourseBtcpay
     end
 
     private
+
+    def card_payment?
+      SiteSetting.btcpay_card_payments && params[:payment_method] == "card"
+    end
 
     # :new, :renewal, :upgrade or :downgrade, decided on BTCPay's prices so a
     # crafted request cannot buy a cheaper tier as if it were an upgrade.

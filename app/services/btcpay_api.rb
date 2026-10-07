@@ -88,8 +88,10 @@ module DiscourseBtcpay
       result
     end
 
-    def invoice_url(invoice_id)
-      "#{@base_url}/i/#{invoice_id}"
+    # payment_method_id opens the checkout on that method, e.g. "STRIPE"
+    def invoice_url(invoice_id, payment_method_id = nil)
+      url = "#{@base_url}/i/#{invoice_id}"
+      payment_method_id.present? ? "#{url}/#{CGI.escape(payment_method_id)}" : url
     end
 
     # Returns a SubscriberModel: { isActive, isSuspended, phase, periodEnd, plan, customer, ... }

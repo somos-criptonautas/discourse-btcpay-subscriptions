@@ -82,6 +82,7 @@ Ve a **Admin → Ajustes** y busca `btcpay`:
 | `btcpay_default_group` | Opcional: un grupo para todos los planes |
 | `btcpay_send_email` | ✓ (evita que BTCPay pida el email) |
 | `btcpay_anonymous_checkout` | Opcional: permitir comprar sin sesión |
+| `btcpay_card_payments` | Opcional: añade un botón "Pagar con tarjeta" (requiere el plugin Stripe de BTCPay) |
 | `btcpay_button_label` | vacío (usa la traducción) |
 | `btcpay_reconcile_interval_hours` | `4` |
 
@@ -240,6 +241,14 @@ Por qué una invitación y no crear la cuenta directamente: BTCPay no verifica q
 Si la dirección ya pertenece a un miembro no se envía invitación: la suscripción se vincula a esa cuenta y el grupo se concede al momento.
 
 A quien ya ha iniciado sesión no se le pregunta nada: su email de Discourse viaja con el checkout (`btcpay_send_email`, activo por defecto) y BTCPay se salta ese paso.
+
+### Pago con tarjeta
+
+Desactivado por defecto. Instala el [plugin Stripe](https://plugin-builder.btcpayserver.org/public/plugins/stripe-payments) en BTCPay, actívalo en la tienda y luego activa `btcpay_card_payments`. El checkout muestra un segundo botón, **Pagar con tarjeta**, junto al de cripto.
+
+Los dos botones crean la misma factura de suscripción; el de tarjeta solo la abre en `/i/<factura>/STRIPE`, así BTCPay muestra primero el formulario de Stripe. Quien paga puede cambiar de método en esa página. El pago con tarjeta abre la página completa de BTCPay en lugar del overlay, que no permite elegir método. La liquidación, los webhooks y el acceso al grupo no cambian.
+
+Las renovaciones siguen siendo una factura por periodo: la tarjeta no se guarda ni se cobra sola.
 
 ### Donaciones
 

@@ -189,8 +189,12 @@ export default class BtcpayCheckout extends Component {
     this.selectedPlan = planId;
   }
 
+  get cardEnabled() {
+    return this.siteSettings.btcpay_card_payments;
+  }
+
   @action
-  async checkout() {
+  async checkout(paymentMethod) {
     // Guard the click itself: loading covers the request, modalOpen covers a
     // checkout already on screen.
     if (!this.selectedPlan || this.loading || this.modalOpen) {
@@ -203,7 +207,10 @@ export default class BtcpayCheckout extends Component {
     try {
       const result = await ajax("/btcpay/checkout", {
         type: "POST",
-        data: { plan_id: this.selectedPlan },
+        data: {
+          plan_id: this.selectedPlan,
+          ...(paymentMethod === "card" && { payment_method: "card" }),
+        },
       });
 
       // Credit covered it: the plan is already running, nothing to pay
@@ -420,7 +427,7 @@ export default class BtcpayCheckout extends Component {
               type="button"
               class="btn btn-primary btn-large btcpay-checkout-btn"
               disabled={{or this.loading (not this.selectedPlan)}}
-              {{on "click" this.checkout}}
+              {{on "click" (fn this.checkout "crypto")}}
             >
               {{if
                 this.loading
@@ -428,6 +435,17 @@ export default class BtcpayCheckout extends Component {
                 this.buttonLabel
               }}
             </button>
+
+            {{#if this.cardEnabled}}
+              <button
+                type="button"
+                class="btn btn-default btn-large btcpay-checkout-btn btcpay-card-btn"
+                disabled={{or this.loading (not this.selectedPlan)}}
+                {{on "click" (fn this.checkout "card")}}
+              >
+                {{i18n "btcpay.checkout.card_label"}}
+              </button>
+            {{/if}}
           {{/if}}
         {{else}}
           <p class="btcpay-no-plans">{{i18n "btcpay.checkout.no_plans"}}</p>

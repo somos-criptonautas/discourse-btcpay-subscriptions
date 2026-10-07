@@ -3,6 +3,14 @@
 All notable changes to this plugin. Versions follow the `version:` field in
 `plugin.rb`; each entry names anything an operator has to do by hand.
 
+## Unreleased
+
+### Added
+- **Pay with card**: with `btcpay_card_payments` on, the checkout offers a
+  second button that opens the subscription invoice on BTCPay's Stripe payment
+  method (`/i/<invoice>/STRIPE`). Requires the Stripe plugin on the BTCPay
+  store; off by default.
+
 ## 1.0.0 — 2026-09-30
 
 ### Added

@@ -39,6 +39,7 @@ en:
         confirmed: "confirmed"
         unconfirmed: "unconfirmed"
         default_label: "Pay with crypto"
+        card_label: "Pay with card"
         processing: "Processing…"
         settled: "Payment received — your subscription is active."
         no_plans: "No crypto payment plans available."
