@@ -415,38 +415,40 @@ export default class BtcpayCheckout extends Component {
             {{/each}}
           </fieldset>
 
-          {{#if this.needsLogin}}
-            <a
-              href={{this.loginUrl}}
-              class="btn btn-primary btn-large btcpay-checkout-btn"
-            >
-              {{i18n "btcpay.checkout.login_to_subscribe"}}
-            </a>
-          {{else}}
-            <button
-              type="button"
-              class="btn btn-primary btn-large btcpay-checkout-btn"
-              disabled={{or this.loading (not this.selectedPlan)}}
-              {{on "click" (fn this.checkout "crypto")}}
-            >
-              {{if
-                this.loading
-                (i18n "btcpay.checkout.processing")
-                this.buttonLabel
-              }}
-            </button>
-
-            {{#if this.cardEnabled}}
+          <div class="btcpay-checkout__actions">
+            {{#if this.needsLogin}}
+              <a
+                href={{this.loginUrl}}
+                class="btn btn-primary btcpay-checkout-btn"
+              >
+                {{i18n "btcpay.checkout.login_to_subscribe"}}
+              </a>
+            {{else}}
               <button
                 type="button"
-                class="btn btn-default btn-large btcpay-checkout-btn btcpay-card-btn"
+                class="btn btn-primary btcpay-checkout-btn"
                 disabled={{or this.loading (not this.selectedPlan)}}
-                {{on "click" (fn this.checkout "card")}}
+                {{on "click" (fn this.checkout "crypto")}}
               >
-                {{i18n "btcpay.checkout.card_label"}}
+                {{if
+                  this.loading
+                  (i18n "btcpay.checkout.processing")
+                  this.buttonLabel
+                }}
               </button>
+
+              {{#if this.cardEnabled}}
+                <button
+                  type="button"
+                  class="btn btn-default btcpay-checkout-btn btcpay-card-btn"
+                  disabled={{or this.loading (not this.selectedPlan)}}
+                  {{on "click" (fn this.checkout "card")}}
+                >
+                  {{i18n "btcpay.checkout.card_label"}}
+                </button>
+              {{/if}}
             {{/if}}
-          {{/if}}
+          </div>
         {{else}}
           <p class="btcpay-no-plans">{{i18n "btcpay.checkout.no_plans"}}</p>
         {{/if}}

@@ -260,17 +260,31 @@
   }
 
   &__body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25em;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.25em 1em;
     flex: 1 1 auto;
+    min-width: 0;
+
+    > * {
+      grid-column: 1 / -1;
+    }
   }
 
   &__header {
+    grid-column: 1;
     display: flex;
     align-items: center;
     gap: 0.5em;
     flex-wrap: wrap;
+  }
+
+  // Prices line up down the right edge, so plans compare at a glance.
+  &__price {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: end;
+    white-space: nowrap;
   }
 
   &__name {
@@ -298,7 +312,7 @@
   }
 
   &__amount {
-    font-size: var(--font-up-2);
+    font-size: var(--font-up-1);
     font-weight: bold;
     color: var(--primary);
   }
@@ -311,7 +325,7 @@
   }
 
   &__trial {
-    align-self: flex-start;
+    justify-self: start;
     padding: 0.15em 0.5em;
     border-radius: var(--d-border-radius, 0.25em);
     background: var(--tertiary-low);
@@ -324,24 +338,17 @@
   }
 }
 
-@media (width >= 700px) {
-  .btcpay-plans {
-    grid-template-columns: repeat(auto-fit, minmax(16em, 1fr));
-  }
+// One row of normal-size buttons sharing a baseline; on a phone they stack
+// full width so neither becomes a small target.
+.btcpay-checkout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
 }
 
-.btcpay-checkout-btn {
-  width: 100%;
-}
-
-.btcpay-card-btn {
-  margin-top: 0.5em;
-}
-
-@media (width >= 700px) {
-  .btcpay-checkout-btn {
-    width: auto;
-    min-width: 16em;
+@media (width < 480px) {
+  .btcpay-checkout__actions .btn {
+    flex: 1 1 100%;
   }
 }
 
