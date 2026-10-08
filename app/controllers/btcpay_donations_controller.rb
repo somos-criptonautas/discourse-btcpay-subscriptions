@@ -10,7 +10,7 @@ module DiscourseBtcpay
     before_action :ensure_donations_enabled
 
     # POST /btcpay/donate
-    # Body: { amount: "10" }
+    # Body: { amount: "10", payment_method: "card" (optional) }
     def create
       ensure_logged_in
 
@@ -51,10 +51,16 @@ module DiscourseBtcpay
                       status: :bad_gateway
       end
 
+      card = card_payment?
+
+      # A card donation is the same POS invoice opened on the Stripe method, so
+      # it reaches the same webhook and is credited like any other. The overlay
+      # cannot pick a method, hence no modal for card.
       render json: {
         invoice_id: invoice_id,
-        checkout_url: api.invoice_url(invoice_id),
-        modal_url: "#{SiteSetting.btcpay_server_url.chomp("/")}/modal/btcpay.js"
+        checkout_url:
+          api.invoice_url(invoice_id, card ? DiscourseBtcpay::STRIPE_PAYMENT_METHOD : nil),
+        modal_url: card ? nil : "#{SiteSetting.btcpay_server_url.chomp("/")}/modal/btcpay.js"
       }
     rescue RateLimiter::LimitExceeded
       render json: { error: I18n.t("discourse_btcpay.errors.rate_limited") },
@@ -98,6 +104,10 @@ module DiscourseBtcpay
     end
 
     private
+
+    def card_payment?
+      SiteSetting.btcpay_card_payments && params[:payment_method] == "card"
+    end
 
     def ensure_donations_enabled
       unless SiteSetting.btcpay_enabled && SiteSetting.btcpay_donations_enabled

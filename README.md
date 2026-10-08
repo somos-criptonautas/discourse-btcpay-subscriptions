@@ -266,6 +266,8 @@ Both buttons create the same subscription invoice; the card button only opens it
 
 Renewals are still one invoice per period: the card is not stored and charged automatically.
 
+Donations use the same switch. `POST /btcpay/donate` with `payment_method: "card"` opens the donation's POS invoice on Stripe the same way, so a card donation reaches the same webhook as a crypto one: it counts toward the fundraising total and the supporter list, and earns the donor badge and points. A donation sent through a bare Stripe Payment Link bypasses BTCPay, and none of that applies to it.
+
 ### Donations
 
 Off by default. Turn on `btcpay_donations_enabled` and set `btcpay_pos_app_id` to the id in your Point of Sale app's URL (`/apps/<id>/pos`).

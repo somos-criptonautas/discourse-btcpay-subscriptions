@@ -250,6 +250,8 @@ Los dos botones crean la misma factura de suscripción; el de tarjeta solo la ab
 
 Las renovaciones siguen siendo una factura por periodo: la tarjeta no se guarda ni se cobra sola.
 
+Las donaciones usan el mismo interruptor. `POST /btcpay/donate` con `payment_method: "card"` abre la factura TPV de la donación en Stripe del mismo modo, así que una donación con tarjeta llega al mismo webhook que una en cripto: suma al total de la recaudación y a la lista de quienes apoyan, y otorga la insignia de donante y los puntos. Una donación enviada por un Payment Link de Stripe directo esquiva BTCPay, y nada de eso le aplica.
+
 ### Donaciones
 
 Desactivadas por defecto. Activa `btcpay_donations_enabled` y pon en `btcpay_pos_app_id` el id que aparece en la URL de tu app TPV (`/apps/<id>/pos`).

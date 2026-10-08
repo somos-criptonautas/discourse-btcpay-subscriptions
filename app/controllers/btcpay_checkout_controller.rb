@@ -4,9 +4,6 @@ module DiscourseBtcpay
   class BtcpayCheckoutController < ::ApplicationController
     requires_plugin DiscourseBtcpay::PLUGIN_NAME
 
-    # The payment method id the BTCPay Stripe plugin registers
-    STRIPE_PAYMENT_METHOD = "STRIPE"
-
     before_action :ensure_can_buy
     before_action :ensure_btcpay_configured
 
@@ -75,7 +72,7 @@ module DiscourseBtcpay
 
       checkout_url =
         if invoice_id.present?
-          api.invoice_url(invoice_id, card ? STRIPE_PAYMENT_METHOD : nil)
+          api.invoice_url(invoice_id, card ? DiscourseBtcpay::STRIPE_PAYMENT_METHOD : nil)
         else
           public_checkout_url(result["url"] || result["redirectUrl"])
         end

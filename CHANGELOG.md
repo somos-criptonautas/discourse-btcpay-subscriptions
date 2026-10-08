@@ -10,6 +10,10 @@ All notable changes to this plugin. Versions follow the `version:` field in
   second button that opens the subscription invoice on BTCPay's Stripe payment
   method (`/i/<invoice>/STRIPE`). Requires the Stripe plugin on the BTCPay
   store; off by default.
+- Card donations through the same switch: `POST /btcpay/donate` accepts
+  `payment_method: "card"` and opens the POS invoice on Stripe, so card
+  donations are credited to the fundraising total, the supporter list, the
+  donor badge and points exactly like crypto ones.
 
 ## 1.0.0 — 2026-09-30
 

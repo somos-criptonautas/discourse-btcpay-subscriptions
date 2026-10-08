@@ -117,6 +117,10 @@ after_initialize do
       plan&.dig("name").presence || plan_id
     end
 
+    # The payment method id the BTCPay Stripe plugin registers. Opening an
+    # invoice on it is how a card payment still runs through BTCPay.
+    STRIPE_PAYMENT_METHOD = "STRIPE"
+
     DONATION_ORDER_PREFIX = "btcpay-donation"
 
     def self.donation_order_id(user_id)

@@ -69,6 +69,29 @@ describe DiscourseBtcpay::BtcpayDonationsController do
       )
     end
 
+    it "opens a card donation on BTCPay's Stripe method, without the overlay" do
+      SiteSetting.btcpay_card_payments = true
+      stub_request(:post, pos_url).to_return(status: 200, body: { invoiceId: "INV-D2" }.to_json)
+
+      post "/btcpay/donate.json", params: { amount: "10", payment_method: "card" }
+
+      expect(response.status).to eq(200)
+      expect(response.parsed_body["checkout_url"]).to eq(
+        "https://btcpay.example.com/i/INV-D2/STRIPE"
+      )
+      expect(response.parsed_body["modal_url"]).to be_nil
+    end
+
+    it "ignores a card request while card payments are off" do
+      SiteSetting.btcpay_card_payments = false
+      stub_request(:post, pos_url).to_return(status: 200, body: { invoiceId: "INV-D3" }.to_json)
+
+      post "/btcpay/donate.json", params: { amount: "10", payment_method: "card" }
+
+      expect(response.parsed_body["checkout_url"]).to eq("https://btcpay.example.com/i/INV-D3")
+      expect(response.parsed_body["modal_url"]).to be_present
+    end
+
     it "refuses an amount below the minimum" do
       SiteSetting.btcpay_donation_min = 5
 
