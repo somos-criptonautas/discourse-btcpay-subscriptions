@@ -167,7 +167,7 @@ module DiscourseBtcpay
         Group.where(automatic: false).order(:name).pluck(:name)
       end
 
-      # ponytail: Greenfield exposes no network field, so we read it off the
+      # Greenfield exposes no network field, so we read it off the
       # chain tip. Swap for the store's derivation-scheme prefix (xpub vs tpub)
       # if a band ever reports "unknown" on a real deployment.
       def network_from_height(height)
