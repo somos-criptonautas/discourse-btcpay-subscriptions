@@ -4,6 +4,8 @@
 
 [ENGLISH](README.md) | **ESPAÑOL**
 
+Mantenido por Criptonautas. Sin afiliación ni respaldo de Discourse (Civilized Discourse Construction Kit, Inc.).
+
 Integración de suscripciones de BTCPay Server para Discourse. Vende acceso a grupos con cualquier cripto que soporte BTCPay — BTC, XMR, LTC, Lightning — con precios fijados en moneda fiat. Autónomo: no necesita Stripe ni `discourse-subscriptions`.
 
 ## Arquitectura
