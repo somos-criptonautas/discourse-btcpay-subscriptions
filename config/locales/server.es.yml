@@ -44,6 +44,16 @@ es:
 
           Todavía no tiene acceso. Se puede invitar a mano o pedirle que se
           registre con esa dirección; la suscripción se vincula sola.
+      email_taken:
+        subject: "BTCPay: pago con el email de un miembro"
+        body: |
+          Alguien pagó el plan '%{plan_id}' sin iniciar sesión, con el email
+          %{email}, que pertenece a @%{username}. BTCPay no verifica ese email,
+          así que el pago no se vinculó a la cuenta (cliente de BTCPay
+          %{customer_id}).
+
+          Si @%{username} confirma que fue quien pagó, se lo puede agregar a mano
+          al grupo del plan. Si no, se reembolsa o se ignora el pago.
       hmac_failures:
         subject: "BTCPay: fallan las firmas del webhook"
         body: |

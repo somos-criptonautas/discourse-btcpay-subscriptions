@@ -59,4 +59,24 @@ describe DiscourseBtcpay::BtcpaySubscriptionManager do
 
     expect(described_class.new.group_for_plan("p1", plan: plan)).to eq("vip")
   end
+
+  it "takes the old plan's group away on a plan change, so expiry leaves nothing behind" do
+    user = Fabricate(:user)
+    premium = Fabricate(:group, name: "premium")
+    vip = Fabricate(:group, name: "vip")
+    DiscourseBtcpay.set_plan_group("p1", "premium")
+    DiscourseBtcpay.set_plan_group("p2", "vip")
+    manager = described_class.new
+    subscriber = { "phase" => "Normal" }
+
+    manager.activate(user_id: user.id, customer_id: "c1", plan_id: "p1", subscriber: subscriber)
+    manager.activate(user_id: user.id, customer_id: "c1", plan_id: "p2", subscriber: subscriber)
+
+    expect(premium.reload.users).not_to include(user)
+    expect(vip.reload.users).to include(user)
+
+    manager.deactivate(user_id: user.id)
+
+    expect(vip.reload.users).not_to include(user)
+  end
 end

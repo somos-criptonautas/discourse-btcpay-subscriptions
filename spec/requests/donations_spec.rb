@@ -102,15 +102,32 @@ describe DiscourseBtcpay::BtcpayDonationsController do
   end
 
   describe "a settled donation" do
-    def settle(invoice_id: "INV-D1", amount: "10", order_user: user)
+    def settle(
+      invoice_id: "INV-D1",
+      amount: "10",
+      order_id: DiscourseBtcpay.donation_order_id(user.id)
+    )
       deliver(
         type: "InvoiceSettled",
         invoiceId: invoice_id,
         metadata: {
-          orderId: "btcpay-donation:#{order_user.id}:abc123",
+          orderId: order_id,
           itemTotal: amount
         }
       )
+    end
+
+    it "ignores an order id that /donate did not sign" do
+      DiscourseBtcpay.set_donor_badge(badge.id)
+      signed = DiscourseBtcpay.donation_order_id(user.id)
+      other = Fabricate(:user)
+
+      settle(order_id: "btcpay-donation:#{user.id}:abc123")
+      settle(invoice_id: "INV-D2", order_id: signed.sub(":#{user.id}:", ":#{other.id}:"))
+
+      expect(PluginStore.get(DiscourseBtcpay::PLUGIN_NAME, "donor:#{user.id}")).to be_nil
+      expect(PluginStore.get(DiscourseBtcpay::PLUGIN_NAME, "donor:#{other.id}")).to be_nil
+      expect(UserBadge.where(badge_id: badge.id).count).to eq(0)
     end
 
     it "credits the donor and never touches groups" do

@@ -105,14 +105,45 @@ describe "BTCPay anonymous checkout" do
       expect(DiscourseBtcpay.get_claim("buyer@example.com")).to be_nil
     end
 
-    it "uses an existing account rather than inviting when the email is known" do
-      user = Fabricate(:user, email: "buyer@example.com")
+    it "waits for a direct signup to confirm the email before attaching" do
+      deliver(type: "PlanStarted", subscriber: subscriber)
 
-      expect { deliver(type: "PlanStarted", subscriber: subscriber) }.not_to change {
-        Invite.count
-      }
+      user = Fabricate(:inactive_user, email: "buyer@example.com")
+
+      expect(DiscourseBtcpay.get_subscription(user.id)).to be_nil
+      expect(group.reload.users).not_to include(user)
+
+      user.activate
 
       expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("active")
+      expect(group.reload.users).to include(user)
+    end
+
+    it "never hands a payment to an existing account on an unverified email" do
+      user = Fabricate(:user, email: "buyer@example.com")
+
+      expect { deliver(type: "PlanStarted", subscriber: subscriber) }.to change {
+        Topic.where(archetype: Archetype.private_message).count
+      }.by(1)
+
+      expect(Invite.count).to eq(0)
+      expect(DiscourseBtcpay.get_subscription(user.id)).to be_nil
+      expect(DiscourseBtcpay.get_claim("buyer@example.com")).to be_nil
+      expect(group.reload.users).not_to include(user)
+    end
+
+    it "keeps a member's own subscription when someone pays with their email" do
+      user = Fabricate(:user, email: "buyer@example.com")
+      DiscourseBtcpay::BtcpaySubscriptionManager.new.activate(
+        user_id: user.id,
+        customer_id: "cust_member",
+        plan_id: "plan-1"
+      )
+
+      deliver(type: "PlanStarted", subscriber: subscriber)
+      deliver(type: "SubscriberDisabled", reason: "Expired", subscriber: subscriber)
+
+      expect(DiscourseBtcpay.get_subscription(user.id)["customer_id"]).to eq("cust_member")
       expect(group.reload.users).to include(user)
     end
   end

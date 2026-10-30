@@ -124,16 +124,27 @@ after_initialize do
     DONATION_ORDER_PREFIX = "btcpay-donation"
 
     def self.donation_order_id(user_id)
-      "#{DONATION_ORDER_PREFIX}:#{user_id}:#{SecureRandom.hex(8)}"
+      payload = "#{user_id}:#{SecureRandom.hex(8)}"
+      "#{DONATION_ORDER_PREFIX}:#{payload}:#{donation_signature(payload)}"
     end
 
-    # "btcpay-donation:<user_id>:<nonce>" — generated server side so a browser
-    # cannot credit a donation to someone else.
+    # "btcpay-donation:<user_id>:<nonce>:<hmac>". The POS endpoint is public and
+    # takes any orderId, so only the signature proves /donate issued it, with
+    # the donor and the minimum it checked.
     def self.user_id_from_order(order_id)
-      parts = order_id.to_s.split(":")
-      return nil unless parts.first == DONATION_ORDER_PREFIX
+      prefix, user_id, nonce, signature = order_id.to_s.split(":")
+      return nil unless prefix == DONATION_ORDER_PREFIX && signature.present?
+      return nil unless ActiveSupport::SecurityUtils.secure_compare(
+        signature,
+        donation_signature("#{user_id}:#{nonce}")
+      )
 
-      parts[1].to_i.positive? ? parts[1].to_i : nil
+      user_id.to_i.positive? ? user_id.to_i : nil
+    end
+
+    def self.donation_signature(payload)
+      key = Rails.application.secret_key_base
+      OpenSSL::HMAC.hexdigest("SHA256", key, "#{DONATION_ORDER_PREFIX}:#{payload}")[0, 32]
     end
 
     def self.donation_recorded?(invoice_id)
@@ -302,6 +313,18 @@ after_initialize do
       ::PluginStore.set(PLUGIN_NAME, "processed_invoices", processed)
     end
 
+    def self.delivery_processed?(delivery_id)
+      (::PluginStore.get(PLUGIN_NAME, "processed_deliveries") || []).include?(delivery_id)
+    end
+
+    def self.mark_delivery_processed(delivery_id)
+      processed = ::PluginStore.get(PLUGIN_NAME, "processed_deliveries") || []
+      return if processed.include?(delivery_id)
+      # shortcut: keeps the last 5000, so a far older capture still replays;
+      # move to a table if that ever matters.
+      ::PluginStore.set(PLUGIN_NAME, "processed_deliveries", (processed << delivery_id).last(5000))
+    end
+
     def self.log_hmac_failure
       failures = ::PluginStore.get(PLUGIN_NAME, "hmac_failures") || { count: 0, last_at: nil }
       failures[:count] += 1
@@ -390,20 +413,24 @@ after_initialize do
     end
   end
 
-  # Someone who paid before having an account: attach the subscription as soon
-  # as the account exists, whether they arrived by invite or signed up directly.
-  on(:user_created) do |user|
+  # Someone who paid before having an account: attach the subscription once the
+  # account proves it owns the email, whether they arrived by invite or signed
+  # up directly. Before that, anyone who knew the address could claim it.
+  attach_claim = ->(user) do
     claim = DiscourseBtcpay.get_claim(user.email)
+    next unless claim
 
-    if claim
-      DiscourseBtcpay::BtcpaySubscriptionManager.new.activate(
-        user_id: user.id,
-        customer_id: claim["customer_id"],
-        plan_id: claim["plan_id"]
-      )
-      DiscourseBtcpay.clear_claim(user.email)
-    end
+    DiscourseBtcpay::BtcpaySubscriptionManager.new.activate(
+      user_id: user.id,
+      customer_id: claim["customer_id"],
+      plan_id: claim["plan_id"]
+    )
+    DiscourseBtcpay.clear_claim(user.email)
   end
+
+  # Already active at creation means the email was verified upstream (OAuth, SSO)
+  on(:user_created) { |user| attach_claim.call(user) if user.active? }
+  on(:user_confirmed_email) { |user, _scope| attach_claim.call(user) }
 
   # Plugin-store rows are keyed by user id, so they would outlive the account.
   on(:user_destroyed) do |user|

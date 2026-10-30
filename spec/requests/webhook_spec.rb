@@ -361,6 +361,16 @@ describe DiscourseBtcpay::BtcpayWebhookController do
     expect(credits.size).to eq(1)
   end
 
+  it "ignores a replayed delivery that was already handled" do
+    deliver(type: "PlanStarted", deliveryId: "del-start", subscriber: subscriber)
+    deliver(type: "SubscriberDisabled", reason: "Expired", subscriber: subscriber)
+
+    deliver(type: "PlanStarted", deliveryId: "del-start", subscriber: subscriber)
+
+    expect(DiscourseBtcpay.get_subscription(user.id)["status"]).to eq("expired")
+    expect(group.reload.users).not_to include(user)
+  end
+
   it "flags a subscriber that needs an upgrade and clears it on the next plan" do
     Fabricate(:admin)
     deliver(type: "PlanStarted", subscriber: subscriber)

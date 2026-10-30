@@ -49,6 +49,13 @@ module DiscourseBtcpay
 
       subscriber ||= fetch_subscriber(customer_id)
 
+      # A plan change overwrites the stored group, and deactivate only removes
+      # the stored one, so the old tier's group has to go now or never.
+      previous_group = DiscourseBtcpay.get_subscription(user_id)&.dig("group_name")
+      if previous_group.present? && previous_group != group_name
+        Group.find_by(name: previous_group)&.remove(user)
+      end
+
       DiscourseBtcpay.store_subscription(user_id, {
         "customer_id" => customer_id,
         "offering_id" => SiteSetting.btcpay_offering_id,
