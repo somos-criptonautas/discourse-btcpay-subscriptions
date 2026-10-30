@@ -67,10 +67,10 @@ describe DiscourseBtcpay::BtcpaySubscriptionManager do
     DiscourseBtcpay.set_plan_group("p1", "premium")
     DiscourseBtcpay.set_plan_group("p2", "vip")
     manager = described_class.new
-    subscriber = { "phase" => "Normal" }
+    on_plan = ->(id) { { "phase" => "Normal", "plan" => { "id" => id, "name" => id } } }
 
-    manager.activate(user_id: user.id, customer_id: "c1", plan_id: "p1", subscriber: subscriber)
-    manager.activate(user_id: user.id, customer_id: "c1", plan_id: "p2", subscriber: subscriber)
+    manager.activate(user_id: user.id, customer_id: "c1", plan_id: "p1", subscriber: on_plan["p1"])
+    manager.activate(user_id: user.id, customer_id: "c1", plan_id: "p2", subscriber: on_plan["p2"])
 
     expect(premium.reload.users).not_to include(user)
     expect(vip.reload.users).to include(user)
