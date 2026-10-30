@@ -15,6 +15,30 @@ All notable changes to this plugin. Versions follow the `version:` field in
   donations are credited to the fundraising total, the supporter list, the
   donor badge and points exactly like crypto ones.
 
+### Security
+- Changing plans now removes the previous plan's group. Before, an upgrade or a
+  downgrade left the old tier's group on the account for good, even after the
+  subscription lapsed. Members who changed plans before this fix may still hold
+  an old group: compare each plan group's members with their current plan by
+  hand.
+- Webhooks no longer match a payment to an account by the email typed at
+  BTCPay, which BTCPay does not verify. A logged-out payment with a member's
+  email no longer touches that member's subscription; staff get a message to
+  link it by hand.
+- Donation order ids are signed (`btcpay-donation:<user>:<nonce>:<hmac>`), so a
+  payment made straight on the public POS can no longer credit another user or
+  skip `btcpay_donation_min`. A donation started before upgrading and paid
+  after it carries an unsigned id and is not credited; credit it by hand.
+- A buyer's paid subscription attaches to a new account only once its email is
+  confirmed, so someone who knows the buyer's address cannot sign up first and
+  take it.
+- Webhook deliveries are handled once. A captured, validly signed delivery
+  replayed later (say, an old PlanStarted after the subscription ended) is
+  ignored. BTCPay's retries of a failed delivery still go through; a manual
+  "Redeliver" of one that already succeeded is now ignored too.
+- Reconciliation removes the group from a disputed subscription once BTCPay
+  shows it inactive or gone. Before, a disputed member kept access for good.
+
 ## 1.0.0 — 2026-09-30
 
 ### Added

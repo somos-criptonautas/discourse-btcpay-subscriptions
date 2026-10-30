@@ -54,7 +54,7 @@ module Jobs
           remote = api.subscriber(customer_id)
         rescue DiscourseBtcpay::BtcpayApi::NotFound
           # The subscriber is gone from BTCPay entirely
-          if local["status"] == "active"
+          if %w[active disputed].include?(local["status"])
             Rails.logger.warn("DiscourseBtcpay: Subscriber #{customer_id} not found remotely, deactivating user #{user_id}")
             manager.deactivate(user_id: user_id, reason: "expired")
             fixed += 1
@@ -92,7 +92,9 @@ module Jobs
       local_status = local["status"]
       plan_id = remote.dig("plan", "id") || local["plan_id"]
 
-      if local_status == "active" && !active_remotely
+      # A disputed member keeps access while staff decide, but not past the
+      # subscription itself ending.
+      if %w[active disputed].include?(local_status) && !active_remotely
         reason = remote["isSuspended"] ? "cancelled" : "expired"
         Rails.logger.info("DiscourseBtcpay: Fixing drift: user #{user_id} active → #{reason}")
         manager.deactivate(user_id: user_id, reason: reason)

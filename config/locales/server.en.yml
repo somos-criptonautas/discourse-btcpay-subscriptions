@@ -44,6 +44,16 @@ en:
 
           They have no access yet. Invite them by hand, or ask them to sign up
           with that address — their subscription attaches automatically.
+      email_taken:
+        subject: "BTCPay: payment with a member's email"
+        body: |
+          Someone paid for plan '%{plan_id}' logged out, with the email %{email},
+          which belongs to @%{username}. BTCPay does not verify that email, so
+          the payment was not linked to the account (BTCPay customer
+          %{customer_id}).
+
+          If @%{username} confirms it was them, add them to the plan's group by
+          hand. Otherwise refund or ignore the payment.
       hmac_failures:
         subject: "BTCPay: webhook signature failing"
         body: |

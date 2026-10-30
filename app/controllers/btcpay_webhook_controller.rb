@@ -39,6 +39,14 @@ module DiscourseBtcpay
       event_type = event["type"]
       Rails.logger.info("DiscourseBtcpay: Received webhook event: #{event_type}")
 
+      # Signatures carry no timestamp, so a captured delivery stays valid forever.
+      # Marked only after handling, so BTCPay's retries of a failed one still run.
+      delivery_id = event["originalDeliveryId"].presence || event["deliveryId"].presence
+      if delivery_id && DiscourseBtcpay.delivery_processed?(delivery_id)
+        Rails.logger.info("DiscourseBtcpay: Delivery #{delivery_id} already processed, skipping")
+        return render json: { status: "ok" }, status: :ok
+      end
+
       case event_type
       when "PlanStarted", "SubscriberActivated"
         handle_plan_started(event)
@@ -74,6 +82,7 @@ module DiscourseBtcpay
         Rails.logger.info("DiscourseBtcpay: Ignoring unhandled event type: #{event_type}")
       end
 
+      DiscourseBtcpay.mark_delivery_processed(delivery_id) if delivery_id
       render json: { status: "ok" }, status: :ok
     rescue RateLimiter::LimitExceeded
       render json: { error: "rate limited" }, status: :too_many_requests
@@ -110,6 +119,8 @@ module DiscourseBtcpay
     # We tag both the subscriber and the invoice with discourse_user_id at
     # checkout, so either side of the payload can identify the user. The stored
     # customer id is the fallback for subscribers created outside Discourse.
+    # Never the payer's email: BTCPay does not verify it, so anyone could type
+    # a member's address and take over their subscription record.
     def resolve_user_id(event)
       subscriber = subscriber_of(event)
 
@@ -124,11 +135,7 @@ module DiscourseBtcpay
         return candidate.to_i if User.exists?(id: candidate.to_i)
       end
 
-      by_customer = DiscourseBtcpay.user_id_for_customer(customer_id_of(event) || event["customerId"])
-      return by_customer if by_customer
-
-      email = customer_email(event)
-      email.present? ? User.find_by_email(email)&.id : nil
+      DiscourseBtcpay.user_id_for_customer(customer_id_of(event) || event["customerId"])
     end
 
     def plan_id_of(event)
@@ -173,16 +180,16 @@ module DiscourseBtcpay
         Invite.generate(inviter, email: email, group_ids: [group.id])
         Rails.logger.info("DiscourseBtcpay: Invited #{email} to '#{group.name}' after payment")
       rescue Invite::UserExists
-        # Raced with a signup: the account exists now, so treat it as one
-        user = User.find_by_email(email)
-        if user
-          DiscourseBtcpay.clear_claim(email)
-          BtcpaySubscriptionManager.new.activate(
-            user_id: user.id,
-            customer_id: customer_id_of(event),
-            plan_id: plan_id
-          )
-        end
+        # The address belongs to an account, but nothing proves the payer owns
+        # it, so staff link it by hand instead of us handing over the account.
+        DiscourseBtcpay.clear_claim(email)
+        DiscourseBtcpay.notify_admin(
+          :email_taken,
+          email: email,
+          username: User.find_by_email(email)&.username,
+          customer_id: customer_id_of(event),
+          plan_id: plan_id
+        )
       rescue => e
         Rails.logger.error("DiscourseBtcpay: Could not invite #{email}: #{e.message}")
         DiscourseBtcpay.notify_admin(:invite_failed, email: email, error: e.message)

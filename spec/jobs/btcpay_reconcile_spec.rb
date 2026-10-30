@@ -71,6 +71,19 @@ describe Jobs::BtcpayReconcile do
     expect(group.reload.users).not_to include(user)
   end
 
+  it "revokes a disputed member's group once the subscription lapses" do
+    store(status: "disputed")
+    group.add(user)
+    stub_request(:get, subscriber_url).to_return(
+      status: 200,
+      body: remote(active: false, phase: "Expired").to_json
+    )
+
+    described_class.new.execute({})
+
+    expect(group.reload.users).not_to include(user)
+  end
+
   it "deactivates when the subscriber is gone from BTCPay" do
     store(status: "active")
     group.add(user)
